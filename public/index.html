@@ -477,6 +477,45 @@
   let es = null;
   let termLastIdx = 0;
 
+  async function resetWorkspaceHard(){
+    // reset di backend (hapus file2 workspace)
+    try{
+      const r = await fetch(api("/workspace/reset"), {
+        method: "POST",
+        credentials: "include"
+      });
+      const j = await r.json().catch(()=>({}));
+      if(!r.ok){
+        console.error("reset failed:", j);
+        showToast((j.detail && (j.detail.code || j.detail)) || "Reset gagal");
+        return false;
+      }
+      return true;
+    }catch(e){
+      console.error(e);
+      showToast("Reset error (cek backend)");
+      return false;
+    }
+  }
+
+  function resetClientState(){
+    // reset state UI supaya step1 kosong
+    texts = [];
+    channel = "";
+    audios = [];
+    zipRel = null;
+    channelMp3 = null;
+    artifacts = [];
+    selectedTextIdx = new Set();
+    selectedMp3Rel = null;
+
+    // optional: reset terminal log (backend sudah ada endpoint)
+    // biar tampilannya fresh juga
+    fetch(api("/events/clear"), { method:"POST", credentials:"include" }).catch(()=>{});
+    termLastIdx = 0;
+    startTerminal(true, true);
+  }
+
   function showToast(msg){
     toast.textContent = msg;
     toast.classList.add("show");
@@ -941,42 +980,71 @@
 
   function renderStep4(){
     const body = $("mainBody");
-    const dl = (path, label) => `<a class="link" href="${api("/download")}?path=${encodeURIComponent(path)}" target="_blank">${label}</a>`;
+    const dl = (path, label) =>
+      `<a class="link" href="${api("/download")}?path=${encodeURIComponent(path)}" target="_blank">${label}</a>`;
+
     const outSound = artifacts.includes("output_sound.txt") ? dl("output_sound.txt","Download output_sound.txt") : "";
-    const animTxt = artifacts.includes("animasi.txt") ? dl("animasi.txt","Download animasi.txt") : "";
-    const mp4 = artifacts.find(x=>x.startsWith("animasi/") && x.endsWith(".mp4"));
-    const mp4Link = mp4 ? dl(mp4, `Download ${mp4}`) : "";
+    const animTxt  = artifacts.includes("animasi.txt") ? dl("animasi.txt","Download animasi.txt") : "";
+    const mp4      = artifacts.find(x=>x.startsWith("animasi/") && x.endsWith(".mp4"));
+    const mp4Link  = mp4 ? dl(mp4, `Download ${mp4}`) : "";
 
     body.innerHTML = `
       <div class="note">
         Pilih MP3 untuk render animasi (Adobe). MP3 yang dipakai berasal dari Step 2.
       </div>
       <div class="sep"></div>
+
       <div class="field">
         <label>MP3 yang akan dirender</label>
         <input id="mp3Rel" value="${selectedMp3Rel || ""}" placeholder="sound/sound_001.mp3"/>
       </div>
+
       <div class="btnrow">
         <button class="btn" id="btnBackToHar" type="button">Kembali</button>
         <button class="btn primary" id="btnRender" type="button">Render Animasi</button>
-        <button class="btn" id="btnRefreshArt" type="button">Refresh Artifacts</button>
+
+        <!-- GANTI INI: Refresh Artifacts -> Generate Lagi -->
+        <button class="btn" id="btnGenerateAgain" type="button">Generate Lagi</button>
       </div>
+
       <div class="sep"></div>
-      <div class="note">
+
+      <div class="note" id="artLinks">
         ${outSound}${outSound && animTxt ? " • " : ""}${animTxt}
         ${(outSound || animTxt) && mp4Link ? " • " : ""}${mp4Link}
       </div>
+
       <div class="note" style="margin-top:8px">
         Catatan: jika Step 2 hanya pilih 1 teks, kamu juga dapat <b>sound_namachannel.mp3</b> di Step 2.
       </div>
     `;
 
     $("btnBackToHar").onclick = ()=>{ setActiveStep(3); renderStep(); };
-    $("btnRefreshArt").onclick = async ()=>{ await fetchArtifacts(); renderStep4(); };
 
+    // tombol baru: Generate Lagi (hard reset)
+    $("btnGenerateAgain").onclick = async ()=>{
+      const btn = $("btnGenerateAgain");
+      btn.disabled = true;
+      const old = btn.textContent;
+      btn.textContent = "Resetting...";
+
+      const ok = await resetWorkspaceHard(); // backend reset
+      if(ok){
+        resetClientState();                  // UI reset
+        setActiveStep(1);                    // balik ke Step Text
+        renderStep();                        // tampilin Step1 kosong
+        showToast("Siap generate dari awal");
+      }
+
+      btn.disabled = false;
+      btn.textContent = old;
+    };
+
+    // render button tetap sama
     $("btnRender").onclick = async ()=>{
       const mp3_relpath = $("mp3Rel").value.trim();
       if(!mp3_relpath){ showToast("mp3_relpath kosong"); return; }
+
       const r = await fetch(api("/step4/render"), {
         method:"POST", credentials:"include",
         headers:{"Content-Type":"application/json"},
@@ -984,6 +1052,7 @@
       });
       const j = await r.json().catch(()=>({}));
       if(!r.ok){ showToast(j.detail || "Render gagal"); return; }
+
       showToast("Render selesai");
       await fetchArtifacts();
       renderStep4();

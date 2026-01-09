@@ -1,0 +1,863 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Shorts Generator Studio</title>
+
+  <style>
+    :root{
+      --bg0:#070A12;
+      --bg1:#0B1020;
+      --card:#0F1730CC;
+      --stroke:#263158;
+      --text:#EAF0FF;
+      --muted:#AAB6E6;
+      --accent:#7C5CFF;
+      --accent2:#00D4FF;
+      --good:#34D399;
+      --bad:#FB7185;
+      --warn:#FBBF24;
+      --shadow: 0 30px 80px rgba(0,0,0,.45);
+      --radius: 22px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family:var(--sans);
+      color:var(--text);
+      background:
+        radial-gradient(1200px 600px at 20% -10%, rgba(124,92,255,.35), transparent 60%),
+        radial-gradient(900px 600px at 90% 10%, rgba(0,212,255,.25), transparent 60%),
+        linear-gradient(180deg, var(--bg0), var(--bg1));
+      overflow-x:hidden;
+    }
+
+    input[type="number"]::-webkit-outer-spin-button,
+    input[type="number"]::-webkit-inner-spin-button{
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    input[type="number"]{
+      -moz-appearance: textfield;
+      appearance: textfield;
+    }
+
+    .modal .mbody > .note:first-child{
+      margin-top: 0;
+    }
+
+    .modal .mbody .note{
+      margin-bottom: 10px;
+      line-height: 1.55;
+    }
+
+    .modal .mbody .sep{
+      margin: 10px 0;
+    }
+
+    .termbox{
+      scrollbar-gutter: stable;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(124,92,255,.55) rgba(10,16,33,.35);
+    }
+
+    .termbox::-webkit-scrollbar{
+      width: 12px;
+    }
+    .termbox::-webkit-scrollbar-track{
+      background: rgba(10,16,33,.35);
+      border-left: 1px solid rgba(38,49,88,.45);
+      border-radius: 999px;
+    }
+    .termbox::-webkit-scrollbar-thumb{
+      background: linear-gradient(180deg, rgba(124,92,255,.65), rgba(0,212,255,.45));
+      border: 3px solid rgba(10,16,33,.35);
+      border-radius: 999px;
+    }
+    .termbox::-webkit-scrollbar-thumb:hover{
+      background: linear-gradient(180deg, rgba(124,92,255,.9), rgba(0,212,255,.7));
+    }
+
+    .termbox{
+      border-top: 1px solid rgba(38,49,88,.35);
+    }
+
+    input:-webkit-autofill,
+    input:-webkit-autofill:hover,
+    input:-webkit-autofill:focus{
+      -webkit-text-fill-color: var(--text) !important;
+      transition: background-color 999999s ease-in-out 0s;
+      box-shadow: 0 0 0 1000px rgba(10,16,33,.75) inset !important;
+      border: 1px solid rgba(38,49,88,.9) !important;
+      caret-color: var(--text);
+    }
+
+    .wrap{max-width:1180px;margin:0 auto;padding:28px 18px 60px}
+    .top{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;}
+    .brand{display:flex;flex-direction:column;gap:6px;}
+    .title{
+      font-size:28px;font-weight:800;letter-spacing:.2px;
+      background: linear-gradient(90deg, #fff, #cfe3ff, #a7b0ff);
+      -webkit-background-clip:text;background-clip:text;color:transparent;
+    }
+    .subtitle{color:var(--muted);font-size:13px}
+
+    .rightTop{display:flex;flex-direction:column;gap:10px;align-items:flex-end}
+    .pillrow{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+    .pill{
+      border:1px solid var(--stroke);
+      padding:7px 10px;border-radius:999px;
+      background:rgba(15,23,48,.55);
+      font-size:12px;color:var(--muted);
+      backdrop-filter: blur(10px);
+      transform: translateY(0);
+      transition: transform .2s ease, border-color .2s ease;
+      user-select:none;
+    }
+    .pill strong{color:var(--text)}
+    .pill:hover{transform: translateY(-2px);border-color: rgba(124,92,255,.55)}
+
+    .minirow{display:flex;gap:8px;flex-wrap:wrap}
+    .miniBtn{
+      border:1px solid rgba(38,49,88,.85);
+      background: rgba(10,16,33,.65);
+      color: var(--text);
+      padding:8px 10px;border-radius:999px;
+      cursor:pointer;
+      transition: transform .15s ease, border-color .2s ease, background .2s ease;
+      font-size:12px;
+    }
+    .miniBtn:hover{transform: translateY(-2px);border-color: rgba(0,212,255,.55)}
+    .miniBtn.danger{border-color: rgba(251,113,133,.55)}
+    .miniBtn.danger:hover{border-color: rgba(251,113,133,.9)}
+
+    .grid{display:grid;grid-template-columns: 1.7fr 1fr;gap:16px;margin-top:18px;}
+    @media (max-width:980px){.grid{grid-template-columns:1fr}}
+
+    .card{
+      background: var(--card);
+      border:1px solid var(--stroke);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+      position:relative;
+      isolation:isolate;
+    }
+    .card::before{
+      content:"";
+      position:absolute;inset:-2px;
+      background: linear-gradient(120deg, rgba(124,92,255,.35), rgba(0,212,255,.18), transparent 60%);
+      opacity:.55;
+      filter: blur(18px);
+      pointer-events:none;
+      animation: glow 6s ease-in-out infinite;
+      z-index:0;
+    }
+    @keyframes glow{
+      0%,100%{transform: translate3d(0,0,0)}
+      50%{transform: translate3d(10px,-8px,0)}
+    }
+    .card > .inner{position:relative;z-index:1}
+
+    .head{
+      padding:16px 16px 12px;
+      border-bottom:1px solid rgba(38,49,88,.65);
+      display:flex;align-items:center;justify-content:space-between;gap:12px;
+    }
+    .hname{font-weight:750}
+    .steps{display:flex;gap:8px;flex-wrap:wrap}
+    .step{
+      font-size:12px;color:var(--muted);
+      border:1px solid rgba(38,49,88,.75);
+      padding:6px 10px;border-radius:999px;
+      background:rgba(10,16,33,.65);
+    }
+    .step.active{
+      color:#fff;border-color: rgba(124,92,255,.8);
+      background: rgba(124,92,255,.18);
+      box-shadow: 0 10px 30px rgba(124,92,255,.18);
+    }
+    .body{padding:16px}
+
+    .row{display:grid;grid-template-columns: 1fr 1fr;gap:12px}
+    @media(max-width:680px){.row{grid-template-columns:1fr}}
+
+    .field{display:flex;flex-direction:column;gap:7px}
+    label{font-size:12px;color:var(--muted)}
+    input, select, textarea{
+      background: rgba(10,16,33,.75);
+      border:1px solid rgba(38,49,88,.9);
+      color:var(--text);
+      border-radius:14px;
+      padding:10px 12px;
+      outline:none;
+      transition: border-color .2s ease, transform .15s ease;
+    }
+    input::placeholder{color: rgba(170,182,230,.65)}
+    input:focus, textarea:focus{
+      border-color: rgba(0,212,255,.7);
+      transform: translateY(-1px);
+    }
+
+    .inpline{position:relative;display:flex;gap:10px;align-items:center}
+    .inpline input{width:100%}
+    .iconToggle{
+      flex:0 0 auto;
+      border:1px solid rgba(38,49,88,.85);
+      background: rgba(10,16,33,.65);
+      color: var(--muted);
+      padding:10px 12px;border-radius:14px;
+      cursor:pointer;
+      transition: transform .15s ease, border-color .2s ease;
+      user-select:none;
+      font-size:12px;
+      white-space:nowrap;
+    }
+    .iconToggle:hover{transform: translateY(-2px);border-color: rgba(124,92,255,.75)}
+    .iconToggle.on{color:#fff;border-color: rgba(0,212,255,.65)}
+
+    .btnrow{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+    .btn{
+      border:1px solid rgba(38,49,88,.85);
+      background: rgba(10,16,33,.65);
+      color: var(--text);
+      padding:10px 14px;border-radius:14px;
+      cursor:pointer;
+      transition: transform .15s ease, border-color .2s ease, background .2s ease;
+      user-select:none;
+    }
+    .btn:hover{transform: translateY(-2px);border-color: rgba(124,92,255,.75)}
+    .btn.primary{
+      background: linear-gradient(90deg, rgba(124,92,255,.85), rgba(0,212,255,.65));
+      border-color: transparent;
+      box-shadow: 0 18px 40px rgba(124,92,255,.18);
+    }
+    .btn.primary:hover{transform: translateY(-2px) scale(1.01)}
+    .btn:disabled{opacity:.55;cursor:not-allowed;transform:none}
+
+    .note{margin-top:10px;font-size:12px;color:var(--muted);line-height:1.5;}
+    .list{margin-top:12px;display:flex;flex-direction:column;gap:10px;}
+    .item{
+      display:flex;gap:10px;align-items:flex-start;
+      padding:12px;border-radius:16px;
+      border:1px solid rgba(38,49,88,.75);
+      background: rgba(10,16,33,.55);
+      transition: transform .15s ease, border-color .2s ease, background .2s ease;
+    }
+    .item:hover{transform: translateY(-2px);border-color: rgba(0,212,255,.45);background: rgba(10,16,33,.75)}
+    .item input{margin-top:2px}
+    .item .txt{font-size:13px;line-height:1.55}
+    .sep{height:1px;background: rgba(38,49,88,.55);margin:14px 0}
+
+    .terminal{height:540px;display:flex;flex-direction:column;}
+    .termhead{
+      padding:16px;border-bottom:1px solid rgba(38,49,88,.65);
+      font-weight:750;
+      display:flex;align-items:center;justify-content:space-between;gap:10px;
+    }
+    .termActions{display:flex;gap:8px;flex-wrap:wrap}
+    .termbox{
+      flex:1;
+      padding:14px 14px 18px;
+      font-family: var(--mono);
+      font-size:11.5px;
+      color:#D9E3FF;
+      overflow:auto;
+      background: radial-gradient(900px 350px at 10% 0%, rgba(124,92,255,.12), transparent 55%),
+                  rgba(10,16,33,.70);
+    }
+    .link{color:#EAF0FF;text-decoration:none;border-bottom:1px dashed rgba(170,182,230,.6);}
+    .link:hover{border-bottom-color: rgba(0,212,255,.9)}
+
+    .toast{
+      position:fixed;left:50%;bottom:18px;transform:translateX(-50%);
+      background: rgba(15,23,48,.92);
+      border:1px solid rgba(38,49,88,.85);
+      padding:10px 12px;border-radius:14px;
+      box-shadow: 0 20px 50px rgba(0,0,0,.35);
+      font-size:12px;color:var(--muted);
+      opacity:0;pointer-events:none;
+      transition: opacity .2s ease, transform .2s ease;
+      z-index:10002;
+    }
+    .toast.show{opacity:1;transform:translateX(-50%) translateY(-4px)}
+
+    .modalback{
+      position:fixed;inset:0;background:rgba(0,0,0,.55);
+      display:none;align-items:center;justify-content:center;
+      padding:18px;
+      backdrop-filter: blur(6px);
+      z-index:10000;
+    }
+    .modal{
+      width:min(560px, 100%);
+      border-radius: 22px;
+      background: rgba(15,23,48,.92);
+      border:1px solid rgba(38,49,88,.9);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+      transform: translateY(10px) scale(.98);
+      opacity:0;
+      transition: transform .18s ease, opacity .18s ease;
+      position:relative;
+      z-index:10001;
+    }
+    .modalback.show{display:flex}
+    .modalback.show .modal{transform: translateY(0) scale(1);opacity:1}
+    .modal .mhead{padding:16px;border-bottom:1px solid rgba(38,49,88,.65);font-weight:800}
+    .modal .mbody{padding:16px}
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div class="brand">
+        <div class="title">Shorts Generator Studio</div>
+        <div class="subtitle">Text → Sound → HAR → Animasi</div>
+      </div>
+
+      <div class="rightTop">
+        <div class="pillrow" id="statusPills">
+          <div class="pill">License: <strong id="pillLicense">-</strong></div>
+          <div class="pill">Gemini: <strong id="pillGemini">-</strong></div>
+          <div class="pill">Eleven: <strong id="pillEleven">-</strong></div>
+          <div class="pill">Workspace: <strong id="pillWS">-</strong></div>
+        </div>
+        <div class="minirow">
+          <button class="miniBtn" id="btnTopSettings">Settings</button>
+          <button class="miniBtn danger" id="btnLogout" style="display:none">Logout</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <div class="inner">
+          <div class="head">
+            <div class="hname" id="stepTitle">Step 0 • License & Keys</div>
+            <div class="steps">
+              <div class="step active" id="st0">Setup</div>
+              <div class="step" id="st1">Text</div>
+              <div class="step" id="st2">Sound</div>
+              <div class="step" id="st3">HAR</div>
+              <div class="step" id="st4">Animasi</div>
+            </div>
+          </div>
+          <div class="body" id="mainBody"></div>
+        </div>
+      </div>
+
+      <div class="card terminal">
+        <div class="inner">
+          <div class="termhead">
+            <span>Terminal</span>
+            <div class="termActions">
+              <button class="miniBtn" id="btnClearTerminal">Clear</button>
+            </div>
+          </div>
+          <div class="termbox" id="terminalBox">
+            <div style="color:#AAB6E6">Belum ada log.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <div class="modalback" id="modalBack">
+    <div class="modal">
+      <div class="mhead">Settings (Apikeys)</div>
+      <div class="mbody">
+        <div class="note">
+          Key disimpan <b>sementara (session-only)</b> untuk keamanan.
+          Model/voice default <b>hidden</b> dan tidak bisa diubah.
+        </div>
+        <div class="sep"></div>
+
+        <input style="position:absolute;left:-9999px;top:-9999px" tabindex="-1" autocomplete="username" />
+        <input style="position:absolute;left:-9999px;top:-9999px" tabindex="-1" type="password" autocomplete="current-password" />
+
+        <div class="row">
+          <div class="field">
+            <label>Gemini Apikey</label>
+            <div class="inpline">
+              <input id="geminiKey" name="gemini_key_field_x" type="password" placeholder="Gemini Apikey"
+                autocomplete="off" spellcheck="false" autocapitalize="off" />
+              <button class="iconToggle" id="togGemini" type="button">SHOW</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>ElevenLabs Apikey</label>
+            <div class="inpline">
+              <input id="elevenKey" name="eleven_key_field_x" type="password" placeholder="ElevenLabs Apikey"
+                autocomplete="off" spellcheck="false" autocapitalize="off" />
+              <button class="iconToggle" id="togEleven" type="button">SHOW</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="btnrow">
+          <button class="btn primary" id="btnSaveKeys" type="button">Simpan</button>
+          <button class="btn" id="btnCloseModal" type="button">Tutup</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  const api = (p) => `/api${p}`;
+  const $ = (id) => document.getElementById(id);
+  const terminalBox = $("terminalBox");
+  const toast = $("toast");
+  let step = 0;
+  let texts = [];
+  let channel = "";
+  let audios = [];
+  let zipRel = null;
+  let channelMp3 = null;
+  let artifacts = [];
+  let selectedTextIdx = new Set();
+  let selectedMp3Rel = null;
+  let es = null;
+  let termLastIdx = 0;
+  function showToast(msg){
+    toast.textContent = msg;
+    toast.classList.add("show");
+    setTimeout(()=>toast.classList.remove("show"), 2000);
+  }
+  function setActiveStep(n){
+    step = n;
+    ["st0","st1","st2","st3","st4"].forEach((id, i)=>{
+      $(id).classList.toggle("active", i===n);
+    });
+    const titles = [
+      "Step 0 • License & Keys",
+      "Step 1 • Generate Text (Gemini)",
+      "Step 2 • Generate Sound (ElevenLabs)",
+      "Step 3 • Upload HAR & Extract",
+      "Step 4 • Render Animasi (Adobe)"
+    ];
+    $("stepTitle").textContent = titles[n] || "ShortStudio";
+  }
+  async function getStatus(){
+    const r = await fetch(api("/settings/status"), {credentials:"include"});
+    const j = await r.json();
+    if(!j.licensed){
+      $("pillLicense").textContent = "NO";
+      $("pillGemini").textContent = "-";
+      $("pillEleven").textContent = "-";
+      $("pillWS").textContent = "-";
+      $("btnLogout").style.display = "none";
+      return j;
+    }
+    $("pillLicense").textContent = j.is_owner ? "OWNER" : "OK";
+    $("pillGemini").textContent = j.has_gemini ? "SET" : "NO";
+    $("pillEleven").textContent = j.has_eleven ? "SET" : "NO";
+    $("pillWS").textContent = (j.workspace_id || "-").slice(0,8);
+    $("btnLogout").style.display = "inline-block";
+    return j;
+  }
+  function openModal(){
+    $("modalBack").classList.add("show");
+    setTimeout(()=>{ try{$("geminiKey").focus()}catch(e){} }, 60);
+  }
+  function closeModal(){ $("modalBack").classList.remove("show"); }
+  $("btnTopSettings").onclick = openModal;
+  $("btnCloseModal").onclick = closeModal;
+  $("modalBack").onclick = (e)=>{ if(e.target.id==="modalBack") closeModal(); };
+  function toggleInput(togBtn, input){
+    const wasPassword = input.type === "password";
+    input.type = wasPassword ? "text" : "password";
+    togBtn.textContent = wasPassword ? "HIDE" : "SHOW";
+    togBtn.classList.toggle("on", wasPassword);
+  }
+  $("togGemini").onclick = ()=> toggleInput($("togGemini"), $("geminiKey"));
+  $("togEleven").onclick = ()=> toggleInput($("togEleven"), $("elevenKey"));
+  function antiAutofillOnce(input){
+    input.setAttribute("readonly", "readonly");
+    input.addEventListener("focus", ()=>{
+      input.removeAttribute("readonly");
+    }, {once:true});
+  }
+  antiAutofillOnce($("geminiKey"));
+  antiAutofillOnce($("elevenKey"));
+  $("btnSaveKeys").onclick = async ()=>{
+    const gemini_key = $("geminiKey").value.trim();
+    const eleven_key = $("elevenKey").value.trim();
+    if(!gemini_key || !eleven_key){
+      showToast("Isi dua Apikey dulu.");
+      return;
+    }
+    const r = await fetch(api("/settings/api-keys"), {
+      method:"POST", credentials:"include",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({gemini_key, eleven_key})
+    });
+    const j = await r.json().catch(()=>({}));
+    if(!r.ok){ showToast(j.detail || "Gagal simpan keys"); return; }
+    showToast("Keys disimpan (session-only).");
+    await getStatus();
+    closeModal();
+    setActiveStep(1);
+    renderStep();
+  };
+  function startTerminal(resetUI=false, forceFromZero=false){
+    if(es){ try{ es.close(); }catch(e){} es=null; }
+    if(resetUI){
+      terminalBox.innerHTML = "";
+    }
+    if(forceFromZero) termLastIdx = 0;
+    es = new EventSource(api(`/events/stream?last=${termLastIdx}`));
+    es.onmessage = (e)=>{
+      const div = document.createElement("div");
+      div.textContent = e.data;
+      terminalBox.appendChild(div);
+      terminalBox.scrollTop = terminalBox.scrollHeight;
+      termLastIdx += 1;
+    };
+    es.onerror = ()=>{
+      try{ es.close(); }catch(e){}
+      es = null;
+      setTimeout(()=>startTerminal(false,false), 1200);
+    };
+  }
+  $("btnClearTerminal").onclick = async () => {
+    try {
+      const r = await fetch(api("/events/clear"), { method:"POST", credentials:"include" });
+      if(!r.ok){ showToast("Clear gagal (belum login?)"); return; }
+      showToast("Terminal cleared");
+      termLastIdx = 0;
+      startTerminal(true, true);
+    } catch (e) {
+      showToast("Clear error");
+    }
+  };
+  $("btnLogout").onclick = async ()=>{
+    try{
+      const r = await fetch(api("/auth/logout"), {method:"POST", credentials:"include"});
+      if(r.ok){
+        showToast("Logout...");
+        if(es){ try{ es.close(); }catch(e){} es=null; }
+        location.reload();
+        return;
+      }
+      showToast("Logout gagal (backend belum siap)");
+    }catch(e){
+      showToast("Logout error");
+    }
+  };
+function renderSetup(){
+  const body = $("mainBody");
+  body.innerHTML = `
+    <!-- dummy fields untuk nangkep autofill browser -->
+    <input style="position:absolute;left:-9999px;top:-9999px" tabindex="-1" autocomplete="username" />
+    <input style="position:absolute;left:-9999px;top:-9999px" tabindex="-1" type="password" autocomplete="current-password" />
+    <div class="row">
+      <div class="field">
+        <label>License</label>
+        <div class="inpline">
+          <input id="licenseKey"
+            name="license_key_field_x"
+            type="password"
+            placeholder="License"
+            autocomplete="new-password"
+            spellcheck="false"
+            autocapitalize="off"
+          />
+          <button class="iconToggle" id="togLicense" type="button">SHOW</button>
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="field">
+        <div class="btnrow">
+          <button class="btn primary" id="btnLicense" type="button">Masuk</button>
+        </div>
+      </div>
+    </div>
+    <div class="note">
+      • Setelah license OK, masukkan Apikeys di Settings.<br/>
+    </div>
+  `;
+  const lk = $("licenseKey");
+  antiAutofillOnce(lk);
+  $("togLicense").onclick = () => toggleInput($("togLicense"), lk);
+  $("btnLicense").onclick = async () => {
+    const license_key = lk.value.trim();
+    if(!license_key){ showToast("License wajib diisi"); return; }
+    const r = await fetch(api("/auth/license"), {
+      method:"POST",
+      credentials:"include",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ license_key })
+    });
+    const j = await r.json().catch(()=>({}));
+    if(!r.ok){ showToast(j.detail || "License invalid"); return; }
+    showToast(j.is_owner ? "Owner login" : "User login");
+    await getStatus();
+    startTerminal(false);
+    lk.value = "";
+    openModal();
+  };
+}
+  async function fetchTexts(){
+    const r = await fetch(api("/step1/texts"), {credentials:"include"});
+    const j = await r.json();
+    channel = j.channel || "";
+    texts = j.texts || [];
+  }
+  function renderStep1(){
+    const body = $("mainBody");
+    body.innerHTML = `
+      <div class="row">
+        <div class="field">
+          <label>Nama Channel</label>
+          <input id="channelName" placeholder="Contoh: BANG JAY" value="${channel || ""}"/>
+        </div>
+        <div class="field">
+          <label>Buat berapa naskah? (max 80)</label>
+          <input id="count" type="number" min="1" max="80" value="1" inputmode="numeric"/>
+        </div>
+      </div>
+      <div class="btnrow">
+        <button class="btn primary" id="btnGenText" type="button">Generate Text</button>
+      </div>
+      <div class="sep"></div>
+      <div class="note">Pilih hasil teks untuk dibuat suara.</div>
+      <div class="list" id="textList"></div>
+      <div class="btnrow">
+        <button class="btn primary" id="btnToTTS" type="button" disabled>Lanjut Generate Sound</button>
+      </div>
+    `;
+    const list = $("textList");
+    function drawTexts(){
+      list.innerHTML = "";
+      if(!texts.length){
+        list.innerHTML = `<div class="note">Belum ada teks. Generate dulu.</div>`;
+        return;
+      }
+      texts.forEach((t, i)=>{
+        const checked = selectedTextIdx.has(i) ? "checked" : "";
+        const el = document.createElement("div");
+        el.className = "item";
+        el.innerHTML = `
+          <input type="checkbox" data-i="${i}" ${checked}/>
+          <div class="txt"><b>[${String(i+1).padStart(2,"0")}]</b> ${t}</div>
+        `;
+        list.appendChild(el);
+      });
+      list.querySelectorAll("input[type=checkbox]").forEach(cb=>{
+        cb.onchange = (e)=>{
+          const i = parseInt(e.target.getAttribute("data-i"),10);
+          if(e.target.checked) selectedTextIdx.add(i); else selectedTextIdx.delete(i);
+          $("btnToTTS").disabled = selectedTextIdx.size===0;
+        };
+      });
+      $("btnToTTS").disabled = selectedTextIdx.size===0;
+    }
+    drawTexts();
+    $("btnGenText").onclick = async ()=>{
+      const channel_name = $("channelName").value.trim();
+      const count = parseInt($("count").value || "0", 10);
+      if(!channel_name || !count){ showToast("Isi channel & count"); return; }
+      const r = await fetch(api("/step1/generate-text"), {
+        method:"POST", credentials:"include",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({channel_name, count})
+      });
+      const j = await r.json().catch(()=>({}));
+      if(!r.ok){ showToast(j.detail || "Gagal generate text"); return; }
+      showToast("Text generated");
+      selectedTextIdx = new Set();
+      await fetchTexts();
+      renderStep1();
+    };
+    $("btnToTTS").onclick = async ()=>{
+      const indexes = Array.from(selectedTextIdx.values()).sort((a,b)=>a-b);
+      const r = await fetch(api("/step2/generate-tts"), {
+        method:"POST", credentials:"include",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({indexes})
+      });
+      const j = await r.json().catch(()=>({}));
+      if(!r.ok){ showToast(j.detail || "Gagal generate sound"); return; }
+      showToast("TTS selesai");
+      setActiveStep(2);
+      await fetchAudios();
+      renderStep();
+    };
+  }
+  async function fetchAudios(){
+    const r = await fetch(api("/step2/audios"), {credentials:"include"});
+    const j = await r.json();
+    audios = j.generated || [];
+    zipRel = j.zip || null;
+    channelMp3 = j.channel_mp3 || null;
+    selectedMp3Rel = audios[0]?.relpath || channelMp3 || null;
+  }
+  function renderStep2(){
+    const body = $("mainBody");
+    const audioItems = (audios || []).map((a, idx)=>{
+      const checked = (selectedMp3Rel === a.relpath) ? "checked" : "";
+      return `
+        <div class="item">
+          <input type="radio" name="pickAudio" data-rel="${a.relpath}" ${checked}/>
+          <div class="txt">
+            <b>[${idx+1}]</b> ${a.filename}<br/>
+            <span style="color:#AAB6E6;font-family:var(--mono)">${a.relpath}</span>
+          </div>
+        </div>
+      `;
+    }).join("");
+    const dlZip = zipRel ? `<a class="link" href="${api("/download")}?path=${encodeURIComponent(zipRel)}" target="_blank">Download ZIP (${zipRel})</a>` : "";
+    const dlChan = channelMp3 ? `<a class="link" href="${api("/download")}?path=${encodeURIComponent(channelMp3)}" target="_blank">Download sound_namachannel.mp3</a>` : "";
+    body.innerHTML = `
+      <div class="note">
+        Audio hasil TTS tersimpan di workspace. Pilih satu MP3 untuk step animasi.
+      </div>
+      <div class="btnrow">
+        <button class="btn" id="btnRefreshAud" type="button">Refresh</button>
+        <button class="btn" id="btnBackToText" type="button">Kembali</button>
+        <button class="btn primary" id="btnToHAR" type="button" ${audios.length? "" : "disabled"}>Lanjut Upload HAR</button>
+      </div>
+      <div class="sep"></div>
+      <div class="note">${dlZip} ${dlZip && dlChan ? " • " : ""} ${dlChan}</div>
+      <div class="list" id="audioList">
+        ${audios.length ? audioItems : `<div class="note">Belum ada audio. Generate dulu dari Step 1.</div>`}
+      </div>
+    `;
+    $("btnRefreshAud").onclick = async ()=>{ await fetchAudios(); renderStep2(); };
+    $("btnBackToText").onclick = async ()=>{ setActiveStep(1); await fetchTexts(); renderStep(); };
+    $("audioList").querySelectorAll("input[type=radio]").forEach(r=>{
+      r.onchange = (e)=>{ selectedMp3Rel = e.target.getAttribute("data-rel"); };
+    });
+    $("btnToHAR").onclick = ()=>{ setActiveStep(3); renderStep(); };
+  }
+  function renderStep3(){
+    const body = $("mainBody");
+    body.innerHTML = `
+      <div class="note">
+        Upload file <b>.har</b> (hasil rekaman network request POST /chx/submit).
+        Sistem akan extract: <span style="font-family:var(--mono)">headers.json, cookies.json, submit_payload.json, user_choices.json</span>
+      </div>
+      <div class="sep"></div>
+      <div class="row">
+        <div class="field">
+          <label>Pilih file .har</label>
+          <input id="harFile" type="file" accept=".har,application/json"/>
+        </div>
+        <div class="field">
+          <div class="btnrow" style="margin-top:0">
+            <button class="btn primary" id="btnUploadHar" type="button">Upload & Extract</button>
+            <button class="btn" id="btnBackToSound" type="button">Kembali</button>
+          </div>
+        </div>
+      </div>
+      <div class="note" id="harMsg"></div>
+      <div class="btnrow">
+        <button class="btn primary" id="btnToAnim" type="button" disabled>Lanjut Render Animasi</button>
+      </div>
+    `;
+    $("btnBackToSound").onclick = async ()=>{ setActiveStep(2); await fetchAudios(); renderStep(); };
+    $("btnUploadHar").onclick = async ()=>{
+      const f = $("harFile").files?.[0];
+      if(!f){ showToast("Pilih file .har dulu"); return; }
+      const fd = new FormData();
+      fd.append("har", f);
+      const r = await fetch(api("/step3/upload-har"), {method:"POST", credentials:"include", body:fd});
+      const j = await r.json().catch(()=>({}));
+      if(!r.ok){ $("harMsg").textContent = j.detail || "Upload gagal"; return; }
+      $("harMsg").innerHTML = `<span style="color:#34D399">✅ HAR extracted sukses</span>`;
+      $("btnToAnim").disabled = false;
+      showToast("HAR OK");
+    };
+    $("btnToAnim").onclick = ()=>{ setActiveStep(4); renderStep(); };
+  }
+  async function fetchArtifacts(){
+    const r = await fetch(api("/artifacts"), {credentials:"include"});
+    const j = await r.json();
+    artifacts = j.files || [];
+  }
+  function renderStep4(){
+    const body = $("mainBody");
+    const dl = (path, label) => `<a class="link" href="${api("/download")}?path=${encodeURIComponent(path)}" target="_blank">${label}</a>`;
+    const outSound = artifacts.includes("output_sound.txt") ? dl("output_sound.txt","Download output_sound.txt") : "";
+    const animTxt = artifacts.includes("animasi.txt") ? dl("animasi.txt","Download animasi.txt") : "";
+    const mp4 = artifacts.find(x=>x.startsWith("animasi/") && x.endsWith(".mp4"));
+    const mp4Link = mp4 ? dl(mp4, `Download ${mp4}`) : "";
+    body.innerHTML = `
+      <div class="note">
+        Pilih MP3 untuk render animasi (Adobe). MP3 yang dipakai berasal dari Step 2.
+      </div>
+      <div class="sep"></div>
+      <div class="field">
+        <label>MP3 yang akan dirender</label>
+        <input id="mp3Rel" value="${selectedMp3Rel || ""}" placeholder="tts_output/sound_001.mp3"/>
+      </div>
+      <div class="btnrow">
+        <button class="btn" id="btnBackToHar" type="button">Kembali</button>
+        <button class="btn primary" id="btnRender" type="button">Render Animasi</button>
+        <button class="btn" id="btnRefreshArt" type="button">Refresh Artifacts</button>
+      </div>
+      <div class="sep"></div>
+      <div class="note">
+        ${outSound}${outSound && animTxt ? " • " : ""}${animTxt}
+        ${(outSound || animTxt) && mp4Link ? " • " : ""}${mp4Link}
+      </div>
+      <div class="note" style="margin-top:8px">
+        Catatan: jika Step 2 hanya pilih 1 teks, kamu juga dapat <b>sound_namachannel.mp3</b> di Step 2.
+      </div>
+    `;
+    $("btnBackToHar").onclick = ()=>{ setActiveStep(3); renderStep(); };
+    $("btnRefreshArt").onclick = async ()=>{ await fetchArtifacts(); renderStep4(); };
+    $("btnRender").onclick = async ()=>{
+      const mp3_relpath = $("mp3Rel").value.trim();
+      if(!mp3_relpath){ showToast("mp3_relpath kosong"); return; }
+      const r = await fetch(api("/step4/render"), {
+        method:"POST", credentials:"include",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({mp3_relpath})
+      });
+      const j = await r.json().catch(()=>({}));
+      if(!r.ok){ showToast(j.detail || "Render gagal"); return; }
+      showToast("Render selesai");
+      await fetchArtifacts();
+      renderStep4();
+    };
+  }
+  function renderStep(){
+    if(step===0) return renderSetup();
+    if(step===1) return renderStep1();
+    if(step===2) return renderStep2();
+    if(step===3) return renderStep3();
+    if(step===4) return renderStep4();
+  }
+  (async function init(){
+    const st = await getStatus();
+    if(!st.licensed){
+      setActiveStep(0);
+      renderStep();
+      return;
+    }
+    startTerminal(false, false);
+    if(!st.has_gemini || !st.has_eleven){
+      setActiveStep(0);
+      renderStep();
+      openModal();
+      return;
+    }
+    setActiveStep(1);
+    await fetchTexts();
+    await fetchAudios();
+    await fetchArtifacts();
+    renderStep();
+  })();
+</script>
+</body>
+</html>

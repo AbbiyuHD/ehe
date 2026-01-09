@@ -14,6 +14,7 @@ from typing import Any, Dict, Optional, List, Deque, Tuple
 from collections import defaultdict, deque
 from urllib.parse import urlparse
 from pathlib import Path
+from itsdangerous import URLSafeSerializer, BadSignature
 
 import requests
 from fastapi import FastAPI, UploadFile, File, HTTPException, Request
@@ -55,6 +56,10 @@ DROP_HEADER_KEYS = {"content-length", "content-type", "host", "connection"}
 MAX_TERMINAL_LINES = 2000
 GEMINI_LOCK = threading.Lock()
 
+SESSION_COOKIE = "ss"
+SESSION_SECRET = os.getenv("SESSION_SECRET", "CHANGE_ME_LONG_RANDOM")
+SER = URLSafeSerializer(SESSION_SECRET, salt="shortstudio")
+
 # ===== INISIALISASI FASTAPI APP =====
 app = FastAPI(title="ShortStudio")
 
@@ -88,31 +93,11 @@ class LogBus:
 
 BUS = LogBus()
 
-_SESS: Dict[str, dict] = {}
-
 def _now() -> float:
     return time.time()
 
-def _cleanup_sessions():
-    ttl = SESSION_TTL_HOURS * 3600
-    now = _now()
-    to_del = []
-    for sid, s in _SESS.items():
-        created = float(s.get("created", 0))
-        if now - created > ttl:
-            to_del.append(sid)
-    for sid in to_del:
-        _SESS.pop(sid, None)
-
-def _get_session(request: Request) -> dict:
-    _cleanup_sessions()
-    sid = request.cookies.get("sid")
-    if sid and sid in _SESS:
-        return _SESS[sid]
-
-    sid = secrets.token_hex(16)
-    _SESS[sid] = {
-        "sid": sid,
+def _new_sess() -> dict:
+    return {
         "created": _now(),
         "license_ok": False if LICENSE_REQUIRED else True,
         "is_owner": False,
@@ -120,22 +105,41 @@ def _get_session(request: Request) -> dict:
         "gemini_key": None,
         "eleven_key": None,
     }
-    request.state.new_sid = sid
-    return _SESS[sid]
+
+def _load_sess_from_cookie(request: Request) -> dict:
+    raw = request.cookies.get(SESSION_COOKIE)
+    if not raw:
+        return _new_sess()
+    try:
+        s = SER.loads(raw)
+        if not isinstance(s, dict):
+            return _new_sess()
+        base = _new_sess()
+        base.update(s)
+        return base
+    except BadSignature:
+        return _new_sess()
+
+def _save_sess_to_cookie(resp, sess: dict, request: Request):
+    val = SER.dumps(sess)
+    resp.set_cookie(
+        SESSION_COOKIE,
+        val,
+        httponly=True,
+        samesite="lax",
+        max_age=SESSION_TTL_HOURS * 3600,
+        secure=(request.url.scheme == "https"),
+        path="/",
+    )
+
+def _get_session(request: Request) -> dict:
+    return request.state.sess
 
 @app.middleware("http")
 async def session_mw(request: Request, call_next):
-    _get_session(request)
+    request.state.sess = _load_sess_from_cookie(request)
     resp = await call_next(request)
-    sid_new = getattr(request.state, "new_sid", None)
-    if sid_new:
-        resp.set_cookie(
-            "sid",
-            sid_new,
-            httponly=True,
-            samesite="lax",
-            max_age=SESSION_TTL_HOURS * 3600,
-        )
+    _save_sess_to_cookie(resp, request.state.sess, request)
     return resp
 
 def _require_license(sess: dict):
@@ -312,11 +316,8 @@ async def auth_license(request: Request):
 
 @app.post("/api/auth/logout")
 async def auth_logout(request: Request):
-    sid = request.cookies.get("sid")
-    if sid:
-        _SESS.pop(sid, None)
     resp = JSONResponse({"ok": True})
-    resp.delete_cookie("sid")
+    resp.delete_cookie(SESSION_COOKIE, path="/")
     return resp
 
 @app.post("/api/settings/api-keys")

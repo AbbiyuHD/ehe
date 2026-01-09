@@ -807,6 +807,55 @@ async def step3_upload_har(request: Request, har: UploadFile = File(...)):
     BUS.push(wid, f"HAR OK dari: {extracted.get('source_url')}")
     return {"ok": True}
 
+@app.post("/api/step3/upload-extracted")
+async def step3_upload_extracted(
+    request: Request,
+    headers: UploadFile = File(...),
+    cookies: UploadFile = File(...),
+    submit_payload: UploadFile = File(...),
+    user_choices: Optional[UploadFile] = File(None),
+):
+    sess = _get_session(request)
+    _require_license(sess)
+    wid = _ensure_workspace(sess)
+
+    def _load_json_upload(up: UploadFile, label: str):
+        raw = asyncio_run(up.read())  # kita buat helper kecil biar rapi
+
+    import asyncio
+
+    async def read_json_file(up: UploadFile, label: str):
+        raw = await up.read()
+        try:
+            return json.loads(raw.decode("utf-8", errors="ignore"))
+        except Exception:
+            raise HTTPException(status_code=400, detail=f"INVALID_JSON_{label}")
+
+    BUS.push(wid, "Upload extracted JSON...")
+
+    h = await read_json_file(headers, "HEADERS")
+    c = await read_json_file(cookies, "COOKIES")
+    p = await read_json_file(submit_payload, "SUBMIT_PAYLOAD")
+
+    if not isinstance(h, dict):
+        raise HTTPException(status_code=400, detail="HEADERS_MUST_BE_OBJECT")
+    if not isinstance(c, dict):
+        raise HTTPException(status_code=400, detail="COOKIES_MUST_BE_OBJECT")
+    if not isinstance(p, dict):
+        # submit_payload bisa saja object besar; kita paksa object supaya flow render aman
+        raise HTTPException(status_code=400, detail="SUBMIT_PAYLOAD_MUST_BE_OBJECT")
+
+    _write_json(wid, "headers.json", h)
+    _write_json(wid, "cookies.json", c)
+    _write_json(wid, "submit_payload.json", p)
+
+    if user_choices is not None:
+        uc = await read_json_file(user_choices, "USER_CHOICES")
+        _write_json(wid, "user_choices.json", uc)
+
+    BUS.push(wid, "Extracted JSON saved: headers/cookies/submit_payload/user_choices.")
+    return {"ok": True}
+
 def _build_adobe_session(headers: dict, cookies: dict) -> requests.Session:
     sess = requests.Session()
     sess.trust_env = False

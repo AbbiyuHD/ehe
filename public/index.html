@@ -813,7 +813,10 @@ function renderSetup(){
     $("audioList").querySelectorAll("input[type=radio]").forEach(r=>{
       r.onchange = (e)=>{ selectedMp3Rel = e.target.getAttribute("data-rel"); };
     });
-    $("btnToHAR").onclick = ()=>{ setActiveStep(3); renderStep(); };
+    $("btnToJSON").onclick = ()=>{
+      setActiveStep(3);
+      renderStep();
+    };
   }
   function renderStep3(){
     const body = $("mainBody");

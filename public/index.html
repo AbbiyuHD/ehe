@@ -1084,7 +1084,7 @@
     const textPath = "output_sound.txt";
     const mp4Path = artifacts.find(x=>x.startsWith("animasi/") && x.endsWith(".mp4")) || null;
 
-    const textReady = artifacts.includes(textPath);
+    const textReady = artifacts.includes(textPath) || (texts && texts.length > 0);
 
     // sound siap kalau ada mp3DataUrl (anti serverless) ATAU file workspace ada
     const soundReady = !!mp3DataUrl || (!!selectedMp3Rel && artifacts.includes(selectedMp3Rel));
@@ -1148,7 +1148,26 @@
 
     $("btnDlText").onclick = ()=>{
       if(!textReady) return;
-      window.open(dlUrl(textPath, textName), "_blank");
+
+      // kalau file output_sound.txt ada → download normal
+      if(artifacts.includes(textPath)){
+        window.open(dlUrl(textPath, textName), "_blank");
+        return;
+      }
+
+      // fallback: generate text file dari data texts yang sudah ada di UI
+      const ch = (channel || "CHANNEL").trim();
+      const lines = [];
+      lines.push("=".repeat(40));
+      lines.push(`CHANNEL : ${ch}`);
+      lines.push(`TOTAL : ${texts.length}`);
+      lines.push("=".repeat(40));
+      lines.push("");
+      texts.forEach((t, i)=> lines.push(`[${String(i+1).padStart(2,"0")}] ${t}`));
+      lines.push("");
+
+      const blob = new Blob([lines.join("\n")], {type:"text/plain;charset=utf-8"});
+      triggerDownloadFromBlob(blob, textName);
     };
 
     $("btnDlSound").onclick = async ()=>{

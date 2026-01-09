@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, Optional, List, Deque, Tuple
 from collections import defaultdict, deque
 from urllib.parse import urlparse
+from pathlib import Path
 
 import requests
 from fastapi import FastAPI, UploadFile, File, HTTPException, Request
@@ -49,6 +50,8 @@ DROP_HEADER_KEYS = {"content-length", "content-type", "host", "connection"}
 
 MAX_TERMINAL_LINES = 2000
 GEMINI_LOCK = threading.Lock()
+
+BASE_DIR = Path(__file__).resolve().parent
 
 app = FastAPI(title="ShortStudio")
 
@@ -254,8 +257,7 @@ def _safe_join(wid: str, relpath: str) -> str:
 
 @app.get("/", response_class=HTMLResponse)
 def home():
-    with open("public/index.html", "r", encoding="utf-8") as f:
-        return f.read()
+    return (BASE_DIR / "public" / "index.html").read_text(encoding="utf-8")
 
 @app.post("/api/auth/license")
 async def auth_license(request: Request):

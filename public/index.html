@@ -768,8 +768,8 @@
           <input id="channelName" placeholder="Contoh: BANG JAY" value="${channel || ""}"/>
         </div>
         <div class="field">
-          <label>Buat berapa naskah? (max 80)</label>
-          <input id="count" type="number" min="1" max="80" value="1" inputmode="numeric"/>
+          <label>Buat berapa naskah? (max 4)</label>
+          <input id="count" type="number" min="1" max="4" value="1" inputmode="numeric"/>
         </div>
       </div>
       <div class="btnrow">
@@ -878,7 +878,6 @@
     }).join("");
 
     const dlZip = zipRel ? `<a class="link" href="${api("/download")}?path=${encodeURIComponent(zipRel)}" target="_blank">Download ZIP (${zipRel})</a>` : "";
-    const dlChan = channelMp3 ? `<a class="link" href="${api("/download")}?path=${encodeURIComponent(channelMp3)}" target="_blank">Download sound_namachannel.mp3</a>` : "";
 
     body.innerHTML = `
       <div class="note">
@@ -1010,7 +1009,7 @@
       }
       $("harMsg").innerHTML = `<span style="color:#34D399">✅ Files saved sukses</span>`;
       $("btnToAnim").disabled = false;
-      showToast("OK");
+      showToast("Sukses upload JSON");
     };
 
     $("btnToAnim").onclick = async ()=>{
@@ -1124,7 +1123,6 @@
 
       <div class="note" style="margin-top:0">
         Download hasil: <b>${prefix}</b>.<br/>
-        Text ${tag(textReady)} | Sound ${tag(soundReady)} | Animasi ${tag(mp4Ready)}
       </div>
 
       <div class="btnrow">

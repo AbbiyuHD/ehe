@@ -53,7 +53,7 @@ GEMINI_LOCK = threading.Lock()
 app = FastAPI(title="ShortStudio")
 
 os.makedirs(WORKSPACES_DIR, exist_ok=True)
-app.mount("/static", StaticFiles(directory="public"), name="static")
+app.mount("/public", StaticFiles(directory="public"), name="public")
 
 class LogBus:
     def __init__(self) -> None:

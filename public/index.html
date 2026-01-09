@@ -337,7 +337,7 @@
     <div class="top">
       <div class="brand">
         <div class="title">Shorts Generator Studio</div>
-        <div class="subtitle">Text → Sound → HAR → Animasi</div>
+        <div class="subtitle">Text → Sound → JSON → Animasi</div>
       </div>
 
       <div class="rightTop">
@@ -363,7 +363,7 @@
               <div class="step active" id="st0">Setup</div>
               <div class="step" id="st1">Text</div>
               <div class="step" id="st2">Sound</div>
-              <div class="step" id="st3">HAR</div>
+              <div class="step" id="st3">JSON</div>
               <div class="step" id="st4">Animasi</div>
             </div>
           </div>
@@ -458,7 +458,7 @@
       "Step 0 • License & Keys",
       "Step 1 • Generate Text (Gemini)",
       "Step 2 • Generate Sound (ElevenLabs)",
-      "Step 3 • Upload HAR & Extract",
+      "Step 3 • Upload JSON",
       "Step 4 • Render Animasi (Adobe)"
     ];
     $("stepTitle").textContent = titles[n] || "ShortStudio";
@@ -742,7 +742,7 @@ function renderSetup(){
       <div class="btnrow">
         <button class="btn" id="btnRefreshAud" type="button">Refresh</button>
         <button class="btn" id="btnBackToText" type="button">Kembali</button>
-        <button class="btn primary" id="btnToHAR" type="button" ${audios.length? "" : "disabled"}>Lanjut Upload HAR</button>
+        <button class="btn primary" id="btnToJSON" type="button" ${audios.length? "" : "disabled"}>Lanjut Upload JSON</button>
       </div>
       <div class="sep"></div>
       <div class="note">${dlZip} ${dlZip && dlChan ? " • " : ""} ${dlChan}</div>

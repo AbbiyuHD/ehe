@@ -878,6 +878,7 @@
     }).join("");
 
     const dlZip = zipRel ? `<a class="link" href="${api("/download")}?path=${encodeURIComponent(zipRel)}" target="_blank">Download ZIP (${zipRel})</a>` : "";
+    const dlChan = channelMp3 ? `<a class="link" href="${api("/download")}?path=${encodeURIComponent(channelMp3)}" target="_blank">Download sound_namachannel.mp3</a>` : "";
 
     body.innerHTML = `
       <div class="note">
@@ -889,7 +890,7 @@
         <button class="btn primary" id="btnToJSON" type="button" ${audios.length? "" : "disabled"}>Lanjut Upload JSON</button>
       </div>
       <div class="sep"></div>
-      <div class="note">${dlZip} ${dlZip && dlChan ? " • " : ""} ${dlChan}</div>
+      <div class="note">${dlZip || ""}</div>
       <div class="list" id="audioList">
         ${audios.length ? audioItems : `<div class="note">Belum ada audio. Generate dulu.</div>`}
       </div>

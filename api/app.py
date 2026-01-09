@@ -192,6 +192,33 @@ def _write_text(wid: str, name: str, text: str) -> str:
         f.write(text)
     return p
 
+def _ensure_output_sound_txt(wid: str) -> None:
+    """Pastikan output_sound.txt ada. Kalau hilang (cold start), regenerate dari generated_texts.json."""
+    out_path = os.path.join(_ws_dir(wid), "output_sound.txt")
+    if os.path.isfile(out_path):
+        return
+
+    try:
+        j = _read_json(wid, "generated_texts.json")
+        channel = (j.get("channel") or "CHANNEL").strip()
+        texts = j.get("texts") or []
+        if not texts:
+            return
+
+        out_lines = []
+        out_lines.append("=" * 40)
+        out_lines.append(f"CHANNEL : {channel}")
+        out_lines.append(f"TOTAL : {len(texts)}")
+        out_lines.append("=" * 40)
+        out_lines.append("")
+        for i, t in enumerate(texts, 1):
+            out_lines.append(f"[{i:02d}] {t}")
+        out_lines.append("")
+        _write_text(wid, "output_sound.txt", "\n".join(out_lines))
+        BUS.push(wid, "output_sound.txt diregenerasi dari generated_texts.json (anti cold-start).")
+    except Exception as e:
+        BUS.push(wid, f"WARNING: gagal regen output_sound.txt: {repr(e)}")
+
 def _list_files(wid: str) -> List[str]:
     d = _ws_dir(wid)
     out = []
@@ -666,6 +693,8 @@ async def step2_generate_tts(request: Request):
         texts = j.get("texts", [])
     except Exception:
         raise HTTPException(status_code=400, detail="NO_TEXTS_YET")
+
+    _ensure_output_sound_txt(wid)
 
     body = await request.json()
     indexes = body.get("indexes") or []

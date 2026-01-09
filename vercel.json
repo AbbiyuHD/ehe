@@ -1,10 +1,14 @@
 {
   "version": 2,
-  "builds": [{ "src": "api/index.py", "use": "@vercel/python" }],
+  "builds": [
+    { "src": "api/index.py", "use": "@vercel/python" }
+  ],
   "functions": {
     "api/index.py": {
-      "includeFiles": ["public/**", "sound.txt"]
+      "includeFiles": "{public/**,sound.txt}"
     }
   },
-  "routes": [{ "src": "/(.*)", "dest": "api/index.py" }]
+  "routes": [
+    { "src": "/(.*)", "dest": "api/index.py" }
+  ]
 }

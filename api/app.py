@@ -224,8 +224,22 @@ def _cleanup_expired_workspaces():
 
 def _ensure_workspace(sess: dict) -> str:
     _cleanup_expired_workspaces()
-    if sess.get("workspace_id"):
-        return sess["workspace_id"]
+
+    wid = sess.get("workspace_id")
+    if wid:
+        d = _ws_dir(wid)
+        # kalau workspace_id ada tapi foldernya hilang (instance baru), minimal bikin ulang
+        if not os.path.isdir(d):
+            os.makedirs(d, exist_ok=True)
+            meta = WorkspaceMeta(
+                workspace_id=wid,
+                created_at=_now(),
+                is_persistent=bool(sess.get("is_owner", False)),
+            )
+            _save_meta(meta)
+            BUS.push(wid, "Workspace folder hilang, dibuat ulang (serverless cold start).")
+        return wid
+
     wid = uuid.uuid4().hex
     os.makedirs(_ws_dir(wid), exist_ok=True)
     meta = WorkspaceMeta(
@@ -1043,9 +1057,14 @@ async def step4_render(request: Request):
     _require_license(sess)
     wid = _ensure_workspace(sess)
 
+    missing = []
     for reqf in ("headers.json", "cookies.json", "submit_payload.json"):
         if not os.path.isfile(_safe_join(wid, reqf)):
-            raise HTTPException(status_code=400, detail="HAR_NOT_READY")
+            missing.append(reqf)
+
+    if missing:
+        BUS.push(wid, f"HAR_NOT_READY missing={missing} files_now={_list_files(wid)}")
+        raise HTTPException(status_code=400, detail={"code":"HAR_NOT_READY", "missing": missing})
 
     body = await request.json()
     mp3_rel = (body.get("mp3_relpath") or "").strip()
@@ -1062,6 +1081,7 @@ async def step4_render(request: Request):
         raise HTTPException(status_code=400, detail=str(e))
 
     return {"ok": True, "mp4": mp4_rel}
+
 
 @app.get("/api/artifacts")
 async def artifacts(request: Request):

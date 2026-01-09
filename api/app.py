@@ -1140,8 +1140,19 @@ async def workspace_reset(request: Request):
     BUS.push(wid, "Workspace direset: kembali fresh seperti baru login.")
     return {"ok": True, "workspace_id": wid}
 
+def _safe_filename(name: str) -> str:
+    name = (name or "").strip()
+    if not name:
+        return ""
+    # anti header injection + anti path traversal
+    name = name.replace("\r", "").replace("\n", "")
+    name = name.replace("\\", "_").replace("/", "_")
+    # rapihin karakter
+    name = re.sub(r"[^A-Za-z0-9_\-\,\.\(\)\[\]\s]+", "_", name).strip()
+    return name[:120]  # batasi panjang
+
 @app.get("/api/download")
-async def download(request: Request, path: str):
+async def download(request: Request, path: str, name: str = ""):
     sess = _get_session(request)
     _require_license(sess)
     wid = _ensure_workspace(sess)
@@ -1149,4 +1160,6 @@ async def download(request: Request, path: str):
     full = _safe_join(wid, path)
     if not os.path.isfile(full):
         raise HTTPException(status_code=404, detail="NOT_FOUND")
-    return FileResponse(full, filename=os.path.basename(full))
+
+    safe = _safe_filename(name)
+    return FileResponse(full, filename=(safe or os.path.basename(full)))

@@ -23,6 +23,10 @@ from fastapi.staticfiles import StaticFiles
 import google.generativeai as genai
 from elevenlabs import ElevenLabs
 
+# ===== DEFINISI BASE_DIR HARUS DI PALING ATAS =====
+BASE_DIR = Path(__file__).resolve().parent.parent  # Naik 1 level dari api/ ke root
+
+# ===== KONSTANTA =====
 SOUND_TEXT_FILE_NAME = "sound.txt"
 
 GEMINI_MODEL_NAME = os.getenv("GEMINI_MODEL_NAME", "models/gemini-2.5-flash")
@@ -51,15 +55,18 @@ DROP_HEADER_KEYS = {"content-length", "content-type", "host", "connection"}
 MAX_TERMINAL_LINES = 2000
 GEMINI_LOCK = threading.Lock()
 
+# ===== INISIALISASI FASTAPI APP =====
 app = FastAPI(title="ShortStudio")
 
+# ===== BUAT DIREKTORI =====
 os.makedirs(WORKSPACES_DIR, exist_ok=True)
-from pathlib import Path
-BASE_DIR = Path(__file__).resolve().parent
-PUBLIC_DIR = BASE_DIR / "public"
 
-app.mount("/public", StaticFiles(directory=str(PUBLIC_DIR)), name="public")
+# ===== MOUNT STATIC FILES =====
+public_dir = os.path.join(BASE_DIR, "public")
+if os.path.exists(public_dir):
+    app.mount("/public", StaticFiles(directory=public_dir), name="public")
 
+# ===== LANJUTKAN DENGAN KODE LAINNYA (LogBus, _SESS, dll) =====
 class LogBus:
     def __init__(self) -> None:
         self._queues: Dict[str, Deque[str]] = defaultdict(lambda: deque(maxlen=MAX_TERMINAL_LINES))

@@ -138,7 +138,14 @@ def _get_session(request: Request) -> dict:
 @app.middleware("http")
 async def session_mw(request: Request, call_next):
     request.state.sess = _load_sess_from_cookie(request)
+    request.state.skip_cookie_save = False  # <- tambah ini
+
     resp = await call_next(request)
+
+    # Kalau endpoint minta jangan set cookie lagi (mis. logout)
+    if getattr(request.state, "skip_cookie_save", False):
+        return resp
+
     _save_sess_to_cookie(resp, request.state.sess, request)
     return resp
 
@@ -316,6 +323,8 @@ async def auth_license(request: Request):
 
 @app.post("/api/auth/logout")
 async def auth_logout(request: Request):
+    request.state.skip_cookie_save = True  # <- penting: jangan set cookie lagi dari middleware
+
     resp = JSONResponse({"ok": True})
     resp.delete_cookie(SESSION_COOKIE, path="/")
     return resp

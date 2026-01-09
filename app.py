@@ -51,12 +51,14 @@ DROP_HEADER_KEYS = {"content-length", "content-type", "host", "connection"}
 MAX_TERMINAL_LINES = 2000
 GEMINI_LOCK = threading.Lock()
 
-BASE_DIR = Path(__file__).resolve().parent
-
 app = FastAPI(title="ShortStudio")
 
 os.makedirs(WORKSPACES_DIR, exist_ok=True)
-app.mount("/public", StaticFiles(directory="public"), name="public")
+from pathlib import Path
+BASE_DIR = Path(__file__).resolve().parent
+PUBLIC_DIR = BASE_DIR / "public"
+
+app.mount("/public", StaticFiles(directory=str(PUBLIC_DIR)), name="public")
 
 class LogBus:
     def __init__(self) -> None:

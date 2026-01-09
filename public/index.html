@@ -23,8 +23,10 @@
       --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
       --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
     }
+
     *{box-sizing:border-box}
     html,body{height:100%}
+
     body{
       margin:0;
       font-family:var(--sans);
@@ -33,7 +35,7 @@
         radial-gradient(1200px 600px at 20% -10%, rgba(124,92,255,.35), transparent 60%),
         radial-gradient(900px 600px at 90% 10%, rgba(0,212,255,.25), transparent 60%),
         linear-gradient(180deg, var(--bg0), var(--bg1));
-      overflow-x:hidden;
+      overflow: hidden; /* body no scroll */
     }
 
     input[type="number"]::-webkit-outer-spin-button,
@@ -46,115 +48,7 @@
       appearance: textfield;
     }
 
-    .modal .mbody > .note:first-child{
-      margin-top: 0;
-    }
-
-    .modal .mbody .note{
-      margin-bottom: 10px;
-      line-height: 1.55;
-    }
-
-    .modal .mbody .sep{
-      margin: 10px 0;
-    }
-
-    /* ===== TERMINAL BOX STATE ===== */
-    .termbox{
-      flex:1;
-      padding:14px 14px 18px;
-      font-family: var(--mono);
-      font-size:11.5px;
-      color:#D9E3FF;
-      overflow:auto;
-
-      /* default: ikut background card (solid) */
-      background: transparent;
-
-      /* jangan reserve tempat scrollbar kalau belum perlu */
-      scrollbar-gutter: auto;
-
-      /* firefox default: jangan kelihatan track saat kosong */
-      scrollbar-width: thin;
-      scrollbar-color: transparent transparent;
-
-      border-top: 1px solid rgba(38,49,88,.35);
-    }
-
-    /* Saat ada log -> baru pakai background "terminal" */
-    .termbox.haslogs{
-      background:
-        radial-gradient(900px 350px at 10% 0%, rgba(124,92,255,.12), transparent 55%),
-        rgba(10,16,33,.70);
-
-      /* kalau kamu suka “layout stabil” saat sudah ada scroll */
-      scrollbar-gutter: stable;
-
-      /* firefox */
-      scrollbar-color: rgba(124,92,255,.55) rgba(10,16,33,.35);
-    }
-
-    /* safety: kalau benar2 empty node, tetap solid */
-    .termbox:empty{
-      background: transparent;
-    }
-
-    /* ===== WEBKIT SCROLLBAR (Chrome/Edge) ===== */
-    .termbox::-webkit-scrollbar{
-      width: 12px;
-      height: 12px; /* horizontal */
-    }
-
-    /* EMPTY: track transparan biar ga ada strip */
-    .termbox.empty::-webkit-scrollbar-track{
-      background: transparent;
-      border: 0;
-    }
-    .termbox.empty::-webkit-scrollbar-thumb{
-      background: transparent;
-      border: 0;
-    }
-
-    /* HAS LOGS: baru tampilkan style scrollbar yang “sewarna UI” */
-    .termbox.haslogs::-webkit-scrollbar-track{
-      background: rgba(10,16,33,.35);
-      border-left: 1px solid rgba(38,49,88,.45);
-      border-top: 1px solid rgba(38,49,88,.45);
-      border-radius: 999px;
-    }
-    .termbox.haslogs::-webkit-scrollbar-thumb{
-      background: linear-gradient(180deg, rgba(124,92,255,.65), rgba(0,212,255,.45));
-      border: 3px solid rgba(10,16,33,.35);
-      border-radius: 999px;
-    }
-    .termbox.haslogs::-webkit-scrollbar-thumb:hover{
-      background: linear-gradient(180deg, rgba(124,92,255,.9), rgba(0,212,255,.7));
-    }
-
-    /* pojok pertemuan scrollbar vert+hor (biar ga ada kotak aneh) */
-    .termbox::-webkit-scrollbar-corner{
-      background: transparent;
-    }
-
-    .filePick{
-      display:flex;
-      gap:10px;
-      align-items:center;
-    }
-    .filePick input[type="file"]{
-      display:none;
-    }
-    .fileName{
-      flex:1;
-      min-width: 0;
-      font-size:12px;
-      color: var(--muted);
-      font-family: var(--mono);
-      overflow:hidden;
-      text-overflow:ellipsis;
-      white-space:nowrap;
-    }
-
+    /* autofill */
     input:-webkit-autofill,
     input:-webkit-autofill:hover,
     input:-webkit-autofill:focus{
@@ -165,7 +59,16 @@
       caret-color: var(--text);
     }
 
-    .wrap{max-width:1180px;margin:0 auto;padding:28px 18px 60px}
+    /* ===== LAYOUT FULL HEIGHT ===== */
+    .wrap{
+      max-width:1180px;
+      margin:0 auto;
+      height: 100vh;
+      display:flex;
+      flex-direction:column;
+      padding: 28px 18px 18px; /* bawah jangan 60px */
+    }
+
     .top{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;}
     .brand{display:flex;flex-direction:column;gap:6px;}
     .title{
@@ -204,8 +107,15 @@
     .miniBtn.danger{border-color: rgba(251,113,133,.55)}
     .miniBtn.danger:hover{border-color: rgba(251,113,133,.9)}
 
-    .grid{display:grid;grid-template-columns: 1.7fr 1fr;gap:16px;margin-top:18px;}
-    @media (max-width:980px){.grid{grid-template-columns:1fr}}
+    .grid{
+      flex:1;
+      min-height:0;
+      display:grid;
+      grid-template-columns: 1.7fr 1fr;
+      gap:16px;
+      margin-top:18px;
+    }
+    @media (max-width:980px){ .grid{ grid-template-columns:1fr } }
 
     .card{
       background: var(--card);
@@ -215,6 +125,7 @@
       overflow:hidden;
       position:relative;
       isolation:isolate;
+      min-height:0;
     }
     .card::before{
       content:"";
@@ -230,7 +141,7 @@
       0%,100%{transform: translate3d(0,0,0)}
       50%{transform: translate3d(10px,-8px,0)}
     }
-    .card > .inner{position:relative;z-index:1}
+    .card > .inner{position:relative;z-index:1;height:100%;display:flex;flex-direction:column;min-height:0;}
 
     .head{
       padding:16px 16px 12px;
@@ -250,7 +161,14 @@
       background: rgba(124,92,255,.18);
       box-shadow: 0 10px 30px rgba(124,92,255,.18);
     }
-    .body{padding:16px}
+
+    /* card kiri boleh scroll kalau konten panjang */
+    .body{
+      flex:1;
+      min-height:0;
+      overflow:auto;
+      padding:16px;
+    }
 
     .row{display:grid;grid-template-columns: 1fr 1fr;gap:12px}
     @media(max-width:680px){.row{grid-template-columns:1fr}}
@@ -322,26 +240,87 @@
     .item .txt{font-size:13px;line-height:1.55}
     .sep{height:1px;background: rgba(38,49,88,.55);margin:14px 0}
 
-    .terminal{height:540px;display:flex;flex-direction:column;}
+    .filePick{display:flex;gap:10px;align-items:center;}
+    .filePick input[type="file"]{display:none;}
+    .fileName{
+      flex:1;
+      min-width: 0;
+      font-size:12px;
+      color: var(--muted);
+      font-family: var(--mono);
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+
+    /* ===== TERMINAL (full height in card) ===== */
+    .terminal{min-height:0;}
     .termhead{
       padding:16px;border-bottom:1px solid rgba(38,49,88,.65);
       font-weight:750;
       display:flex;align-items:center;justify-content:space-between;gap:10px;
     }
     .termActions{display:flex;gap:8px;flex-wrap:wrap}
+    .link{color:#EAF0FF;text-decoration:none;border-bottom:1px dashed rgba(170,182,230,.6);}
+    .link:hover{border-bottom-color: rgba(0,212,255,.9)}
+
+    /* ===== TERMINAL BOX STATE ===== */
     .termbox{
       flex:1;
+      min-height:0;
       padding:14px 14px 18px;
       font-family: var(--mono);
       font-size:11.5px;
       color:#D9E3FF;
       overflow:auto;
-      background: radial-gradient(900px 350px at 10% 0%, rgba(124,92,255,.12), transparent 55%),
-                  rgba(10,16,33,.70);
-    }
-    .link{color:#EAF0FF;text-decoration:none;border-bottom:1px dashed rgba(170,182,230,.6);}
-    .link:hover{border-bottom-color: rgba(0,212,255,.9)}
 
+      /* horizontal scroll muncul (tidak wrap) */
+      white-space: pre;
+      overflow-wrap: normal;
+      word-break: normal;
+
+      /* default: ikut background card */
+      background: transparent;
+
+      scrollbar-gutter: auto;
+      scrollbar-width: thin;
+      scrollbar-color: transparent transparent;
+
+      border-top: 1px solid rgba(38,49,88,.35);
+    }
+    .termbox > div{ white-space: pre; }
+
+    /* saat ada log */
+    .termbox.haslogs{
+      background:
+        radial-gradient(900px 350px at 10% 0%, rgba(124,92,255,.12), transparent 55%),
+        rgba(10,16,33,.70);
+      scrollbar-gutter: stable;
+      scrollbar-color: rgba(124,92,255,.55) rgba(10,16,33,.35);
+    }
+
+    /* Webkit scrollbar */
+    .termbox::-webkit-scrollbar{ width:12px; height:12px; }
+    .termbox.empty::-webkit-scrollbar-track{ background:transparent; border:0; }
+    .termbox.empty::-webkit-scrollbar-thumb{ background:transparent; border:0; }
+
+    .termbox.haslogs::-webkit-scrollbar-track{
+      background: rgba(10,16,33,.35);
+      border-left: 1px solid rgba(38,49,88,.45);
+      border-top: 1px solid rgba(38,49,88,.45);
+      border-radius: 999px;
+    }
+    .termbox.haslogs::-webkit-scrollbar-thumb{
+      background: linear-gradient(180deg, rgba(124,92,255,.65), rgba(0,212,255,.45));
+      border: 3px solid rgba(10,16,33,.35);
+      border-radius: 999px;
+    }
+    .termbox.haslogs::-webkit-scrollbar-thumb:hover{
+      background: linear-gradient(180deg, rgba(124,92,255,.9), rgba(0,212,255,.7));
+    }
+    .termbox::-webkit-scrollbar-corner{ background: transparent; }
+
+    /* ===== TOAST & MODAL ===== */
     .toast{
       position:fixed;left:50%;bottom:18px;transform:translateX(-50%);
       background: rgba(15,23,48,.92);
@@ -362,6 +341,10 @@
       backdrop-filter: blur(6px);
       z-index:10000;
     }
+    .modal .mbody > .note:first-child{ margin-top: 0; }
+    .modal .mbody .note{ margin-bottom: 10px; line-height: 1.55; }
+    .modal .mbody .sep{ margin: 10px 0; }
+
     .modal{
       width:min(560px, 100%);
       border-radius: 22px;
@@ -430,7 +413,6 @@
             </div>
           </div>
           <div class="termbox empty" id="terminalBox"></div>
-          </div>
         </div>
       </div>
     </div>
@@ -494,11 +476,13 @@
   let selectedMp3Rel = null;
   let es = null;
   let termLastIdx = 0;
+
   function showToast(msg){
     toast.textContent = msg;
     toast.classList.add("show");
     setTimeout(()=>toast.classList.remove("show"), 2000);
   }
+
   function setActiveStep(n){
     step = n;
     ["st0","st1","st2","st3","st4"].forEach((id, i)=>{
@@ -513,6 +497,7 @@
     ];
     $("stepTitle").textContent = titles[n] || "ShortStudio";
   }
+
   async function getStatus(){
     const r = await fetch(api("/settings/status"), {credentials:"include"});
     const j = await r.json();
@@ -531,14 +516,17 @@
     $("btnLogout").style.display = "inline-block";
     return j;
   }
+
   function openModal(){
     $("modalBack").classList.add("show");
     setTimeout(()=>{ try{$("geminiKey").focus()}catch(e){} }, 60);
   }
   function closeModal(){ $("modalBack").classList.remove("show"); }
+
   $("btnTopSettings").onclick = openModal;
   $("btnCloseModal").onclick = closeModal;
   $("modalBack").onclick = (e)=>{ if(e.target.id==="modalBack") closeModal(); };
+
   function toggleInput(togBtn, input){
     const wasPassword = input.type === "password";
     input.type = wasPassword ? "text" : "password";
@@ -547,6 +535,7 @@
   }
   $("togGemini").onclick = ()=> toggleInput($("togGemini"), $("geminiKey"));
   $("togEleven").onclick = ()=> toggleInput($("togEleven"), $("elevenKey"));
+
   function antiAutofillOnce(input){
     input.setAttribute("readonly", "readonly");
     input.addEventListener("focus", ()=>{
@@ -555,6 +544,7 @@
   }
   antiAutofillOnce($("geminiKey"));
   antiAutofillOnce($("elevenKey"));
+
   $("btnSaveKeys").onclick = async ()=>{
     const gemini_key = $("geminiKey").value.trim();
     const eleven_key = $("elevenKey").value.trim();
@@ -575,11 +565,18 @@
     setActiveStep(1);
     renderStep();
   };
+
+  function syncTerminalState(){
+    const empty = terminalBox.childElementCount === 0 && terminalBox.textContent.trim() === "";
+    terminalBox.classList.toggle("empty", empty);
+    terminalBox.classList.toggle("haslogs", !empty);
+  }
+
   function startTerminal(resetUI=false, forceFromZero=false){
     if(es){ try{ es.close(); }catch(e){} es=null; }
     if(resetUI){
       terminalBox.innerHTML = "";
-      syncTerminalState();   // <-- tambah ini
+      syncTerminalState();
     }
     if(forceFromZero) termLastIdx = 0;
 
@@ -588,7 +585,7 @@
       const div = document.createElement("div");
       div.textContent = e.data;
       terminalBox.appendChild(div);
-      syncTerminalState();   // <-- tambah ini
+      syncTerminalState();
       terminalBox.scrollTop = terminalBox.scrollHeight;
       termLastIdx += 1;
     };
@@ -598,6 +595,7 @@
       setTimeout(()=>startTerminal(false,false), 1200);
     };
   }
+
   $("btnClearTerminal").onclick = async () => {
     try {
       const r = await fetch(api("/events/clear"), { method:"POST", credentials:"include" });
@@ -609,6 +607,7 @@
       showToast("Clear error");
     }
   };
+
   $("btnLogout").onclick = async ()=>{
     try{
       const r = await fetch(api("/auth/logout"), {method:"POST", credentials:"include"});
@@ -623,71 +622,68 @@
       showToast("Logout error");
     }
   };
-function syncTerminalState(){
-  const empty = terminalBox.childElementCount === 0 && terminalBox.textContent.trim() === "";
-  terminalBox.classList.toggle("empty", empty);
-  terminalBox.classList.toggle("haslogs", !empty);
-}
-function renderSetup(){
-  const body = $("mainBody");
-  body.innerHTML = `
-    <!-- dummy fields untuk nangkep autofill browser -->
-    <input style="position:absolute;left:-9999px;top:-9999px" tabindex="-1" autocomplete="username" />
-    <input style="position:absolute;left:-9999px;top:-9999px" tabindex="-1" type="password" autocomplete="current-password" />
-    <div class="row">
-      <div class="field">
-        <label>License</label>
-        <div class="inpline">
-          <input id="licenseKey"
-            name="license_key_field_x"
-            type="password"
-            placeholder="License"
-            autocomplete="new-password"
-            spellcheck="false"
-            autocapitalize="off"
-          />
-          <button class="iconToggle" id="togLicense" type="button">SHOW</button>
+
+  function renderSetup(){
+    const body = $("mainBody");
+    body.innerHTML = `
+      <input style="position:absolute;left:-9999px;top:-9999px" tabindex="-1" autocomplete="username" />
+      <input style="position:absolute;left:-9999px;top:-9999px" tabindex="-1" type="password" autocomplete="current-password" />
+      <div class="row">
+        <div class="field">
+          <label>License</label>
+          <div class="inpline">
+            <input id="licenseKey"
+              name="license_key_field_x"
+              type="password"
+              placeholder="License"
+              autocomplete="new-password"
+              spellcheck="false"
+              autocapitalize="off"
+            />
+            <button class="iconToggle" id="togLicense" type="button">SHOW</button>
+          </div>
         </div>
       </div>
-    </div>
-    <div class="row">
-      <div class="field">
-        <div class="btnrow">
-          <button class="btn primary" id="btnLicense" type="button">Masuk</button>
+      <div class="row">
+        <div class="field">
+          <div class="btnrow">
+            <button class="btn primary" id="btnLicense" type="button">Masuk</button>
+          </div>
         </div>
       </div>
-    </div>
-    <div class="note">
-      • Setelah license OK, masukkan Apikeys di Settings.<br/>
-    </div>
-  `;
-  const lk = $("licenseKey");
-  antiAutofillOnce(lk);
-  $("togLicense").onclick = () => toggleInput($("togLicense"), lk);
-  $("btnLicense").onclick = async () => {
-    const license_key = lk.value.trim();
-    if(!license_key){ showToast("License wajib diisi"); return; }
-    const r = await fetch(api("/auth/license"), {
-      method:"POST",
-      credentials:"include",
-      headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({ license_key })
-    });
-    const j = await r.json().catch(()=>({}));
-    if(!r.ok){ showToast(j.detail || "License invalid"); return; }
-    showToast(j.is_owner ? "Owner login" : "User login");
-    await getStatus();
-    startTerminal(false);
-    lk.value = "";
-    openModal();
-  };
-}
+      <div class="note">
+        • Setelah license OK, masukkan Apikeys di Settings.<br/>
+      </div>
+    `;
+    const lk = $("licenseKey");
+    antiAutofillOnce(lk);
+    $("togLicense").onclick = () => toggleInput($("togLicense"), lk);
+    $("btnLicense").onclick = async () => {
+      const license_key = lk.value.trim();
+      if(!license_key){ showToast("License wajib diisi"); return; }
+      const r = await fetch(api("/auth/license"), {
+        method:"POST",
+        credentials:"include",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ license_key })
+      });
+      const j = await r.json().catch(()=>({}));
+      if(!r.ok){ showToast(j.detail || "License invalid"); return; }
+      showToast(j.is_owner ? "Owner login" : "User login");
+      await getStatus();
+      startTerminal(false);
+      lk.value = "";
+      openModal();
+    };
+  }
+
   async function fetchTexts(){
     const r = await fetch(api("/step1/texts"), {credentials:"include"});
     const j = await r.json();
     channel = j.channel || "";
     texts = j.texts || [];
   }
+
   function renderStep1(){
     const body = $("mainBody");
     body.innerHTML = `
@@ -712,6 +708,7 @@ function renderSetup(){
       </div>
     `;
     const list = $("textList");
+
     function drawTexts(){
       list.innerHTML = "";
       if(!texts.length){
@@ -737,7 +734,9 @@ function renderSetup(){
       });
       $("btnToTTS").disabled = selectedTextIdx.size===0;
     }
+
     drawTexts();
+
     $("btnGenText").onclick = async ()=>{
       const channel_name = $("channelName").value.trim();
       const count = parseInt($("count").value || "0", 10);
@@ -754,6 +753,7 @@ function renderSetup(){
       await fetchTexts();
       renderStep1();
     };
+
     $("btnToTTS").onclick = async ()=>{
       const indexes = Array.from(selectedTextIdx.values()).sort((a,b)=>a-b);
       const r = await fetch(api("/step2/generate-tts"), {
@@ -769,6 +769,7 @@ function renderSetup(){
       renderStep();
     };
   }
+
   async function fetchAudios(){
     const r = await fetch(api("/step2/audios"), {credentials:"include"});
     const j = await r.json();
@@ -777,6 +778,7 @@ function renderSetup(){
     channelMp3 = j.channel_mp3 || null;
     selectedMp3Rel = audios[0]?.relpath || channelMp3 || null;
   }
+
   function renderStep2(){
     const body = $("mainBody");
     const audioItems = (audios || []).map((a, idx)=>{
@@ -791,8 +793,10 @@ function renderSetup(){
         </div>
       `;
     }).join("");
+
     const dlZip = zipRel ? `<a class="link" href="${api("/download")}?path=${encodeURIComponent(zipRel)}" target="_blank">Download ZIP (${zipRel})</a>` : "";
     const dlChan = channelMp3 ? `<a class="link" href="${api("/download")}?path=${encodeURIComponent(channelMp3)}" target="_blank">Download sound_namachannel.mp3</a>` : "";
+
     body.innerHTML = `
       <div class="note">
         Audio hasil generate tersimpan di workspace. Pilih satu MP3 untuk step animasi.
@@ -808,16 +812,20 @@ function renderSetup(){
         ${audios.length ? audioItems : `<div class="note">Belum ada audio. Generate dulu dari Step 1.</div>`}
       </div>
     `;
+
     $("btnRefreshAud").onclick = async ()=>{ await fetchAudios(); renderStep2(); };
     $("btnBackToText").onclick = async ()=>{ setActiveStep(1); await fetchTexts(); renderStep(); };
+
     $("audioList").querySelectorAll("input[type=radio]").forEach(r=>{
       r.onchange = (e)=>{ selectedMp3Rel = e.target.getAttribute("data-rel"); };
     });
+
     $("btnToJSON").onclick = ()=>{
       setActiveStep(3);
       renderStep();
     };
   }
+
   function renderStep3(){
     const body = $("mainBody");
     body.innerHTML = `
@@ -878,7 +886,6 @@ function renderSetup(){
       </div>
     `;
 
-    // helper untuk tombol pilih file biar rapi
     function wirePick(btnId, inputId, nameId){
       $(btnId).onclick = ()=> $(inputId).click();
       $(inputId).onchange = ()=>{
@@ -925,11 +932,13 @@ function renderSetup(){
 
     $("btnToAnim").onclick = ()=>{ setActiveStep(4); renderStep(); };
   }
+
   async function fetchArtifacts(){
     const r = await fetch(api("/artifacts"), {credentials:"include"});
     const j = await r.json();
     artifacts = j.files || [];
   }
+
   function renderStep4(){
     const body = $("mainBody");
     const dl = (path, label) => `<a class="link" href="${api("/download")}?path=${encodeURIComponent(path)}" target="_blank">${label}</a>`;
@@ -937,6 +946,7 @@ function renderSetup(){
     const animTxt = artifacts.includes("animasi.txt") ? dl("animasi.txt","Download animasi.txt") : "";
     const mp4 = artifacts.find(x=>x.startsWith("animasi/") && x.endsWith(".mp4"));
     const mp4Link = mp4 ? dl(mp4, `Download ${mp4}`) : "";
+
     body.innerHTML = `
       <div class="note">
         Pilih MP3 untuk render animasi (Adobe). MP3 yang dipakai berasal dari Step 2.
@@ -960,8 +970,10 @@ function renderSetup(){
         Catatan: jika Step 2 hanya pilih 1 teks, kamu juga dapat <b>sound_namachannel.mp3</b> di Step 2.
       </div>
     `;
+
     $("btnBackToHar").onclick = ()=>{ setActiveStep(3); renderStep(); };
     $("btnRefreshArt").onclick = async ()=>{ await fetchArtifacts(); renderStep4(); };
+
     $("btnRender").onclick = async ()=>{
       const mp3_relpath = $("mp3Rel").value.trim();
       if(!mp3_relpath){ showToast("mp3_relpath kosong"); return; }
@@ -977,6 +989,7 @@ function renderSetup(){
       renderStep4();
     };
   }
+
   function renderStep(){
     if(step===0) return renderSetup();
     if(step===1) return renderStep1();
@@ -984,6 +997,7 @@ function renderSetup(){
     if(step===3) return renderStep3();
     if(step===4) return renderStep4();
   }
+
   (async function init(){
     syncTerminalState();
     const st = await getStatus();

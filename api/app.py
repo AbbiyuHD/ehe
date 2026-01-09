@@ -9,6 +9,7 @@ import random
 import zipfile
 import secrets
 import threading
+import base64
 from dataclasses import dataclass
 from typing import Any, Dict, Optional, List, Deque, Tuple
 from collections import defaultdict, deque
@@ -71,7 +72,7 @@ public_dir = os.path.join(BASE_DIR, "public")
 if os.path.exists(public_dir):
     app.mount("/public", StaticFiles(directory=public_dir), name="public")
 
-# ===== LANJUTKAN DENGAN KODE LAINNYA (LogBus, _SESS, dll) =====
+# ===== LOG BUS =====
 class LogBus:
     def __init__(self) -> None:
         self._queues: Dict[str, Deque[str]] = defaultdict(lambda: deque(maxlen=MAX_TERMINAL_LINES))
@@ -138,11 +139,10 @@ def _get_session(request: Request) -> dict:
 @app.middleware("http")
 async def session_mw(request: Request, call_next):
     request.state.sess = _load_sess_from_cookie(request)
-    request.state.skip_cookie_save = False  # <- tambah ini
+    request.state.skip_cookie_save = False
 
     resp = await call_next(request)
 
-    # Kalau endpoint minta jangan set cookie lagi (mis. logout)
     if getattr(request.state, "skip_cookie_save", False):
         return resp
 
@@ -206,10 +206,8 @@ def _reset_workspace(wid: str) -> None:
     if not os.path.isdir(d):
         os.makedirs(d, exist_ok=True)
 
-    # hapus semua kecuali meta.json (biar workspace_id tetap sama)
     keep = {"meta.json"}
-    for root, dirs, files in os.walk(d):
-        # hapus file
+    for root, _, files in os.walk(d):
         for fn in files:
             rel = os.path.relpath(os.path.join(root, fn), d).replace("\\", "/")
             if rel in keep:
@@ -219,12 +217,9 @@ def _reset_workspace(wid: str) -> None:
             except Exception:
                 pass
 
-        # hapus folder tertentu yang pasti aman dibuang
-        # (sound/, animasi/ dll) — lakukan dari dalam ke luar
     for sub in ["sound", "animasi"]:
         shutil.rmtree(os.path.join(d, sub), ignore_errors=True)
 
-    # bersihin meta channel_name
     try:
         meta = _load_meta(wid)
         meta.channel_name = None
@@ -232,7 +227,6 @@ def _reset_workspace(wid: str) -> None:
     except Exception:
         pass
 
-    # bersihin terminal log juga biar fresh
     BUS.clear(wid)
 
 def _cleanup_expired_workspaces():
@@ -262,7 +256,6 @@ def _ensure_workspace(sess: dict) -> str:
     wid = sess.get("workspace_id")
     if wid:
         d = _ws_dir(wid)
-        # kalau workspace_id ada tapi foldernya hilang (instance baru), minimal bikin ulang
         if not os.path.isdir(d):
             os.makedirs(d, exist_ok=True)
             meta = WorkspaceMeta(
@@ -330,7 +323,6 @@ def home():
         if index_path.exists():
             return index_path.read_text(encoding="utf-8")
         else:
-            # Fallback jika file tidak ada
             return HTMLResponse(
                 content="""
                 <!DOCTYPE html>
@@ -371,7 +363,7 @@ async def auth_license(request: Request):
 
 @app.post("/api/auth/logout")
 async def auth_logout(request: Request):
-    request.state.skip_cookie_save = True  # <- penting: jangan set cookie lagi dari middleware
+    request.state.skip_cookie_save = True
 
     resp = JSONResponse({"ok": True})
     resp.delete_cookie(SESSION_COOKIE, path="/")
@@ -592,6 +584,11 @@ def _tts_generate(wid: str, eleven_key: str, texts: List[str], selected_indexes:
     channel = (meta.channel_name or "CHANNEL").strip()
     safe_channel = re.sub(r"[^A-Za-z0-9_\-]+", "_", channel).strip("_")[:40] or "CHANNEL"
 
+    # hanya kalau 1 item: kita buat data_url (anti serverless)
+    want_data_url = (len(selected_indexes) == 1)
+    primary_data_url = None
+    primary_relpath = None
+
     generated = []
     for idx in selected_indexes:
         text = texts[idx]
@@ -613,8 +610,20 @@ def _tts_generate(wid: str, eleven_key: str, texts: List[str], selected_indexes:
                 if chunk:
                     f.write(chunk)
 
+        rel = f"sound/{fn}"
         BUS.push(wid, f"Sound saved: {fn}")
-        generated.append({"index": idx, "filename": fn, "relpath": f"sound/{fn}"})
+        generated.append({"index": idx, "filename": fn, "relpath": rel})
+
+        # kalau cuma 1 file, bikin data_url untuk MP3 itu
+        if want_data_url and primary_data_url is None:
+            try:
+                with open(path, "rb") as fp:
+                    b = fp.read()
+                primary_data_url = "data:audio/mpeg;base64," + base64.b64encode(b).decode("ascii")
+                primary_relpath = rel
+                BUS.push(wid, f"Primary data_url siap untuk: {rel}")
+            except Exception as e:
+                BUS.push(wid, f"WARNING: gagal buat data_url mp3: {repr(e)}")
 
     channel_mp3_rel = None
     if len(generated) == 1:
@@ -635,7 +644,13 @@ def _tts_generate(wid: str, eleven_key: str, texts: List[str], selected_indexes:
         zip_rel = f"sound/{zip_name}"
         BUS.push(wid, f"ZIP dibuat: {zip_name}")
 
-    return {"generated": generated, "zip_rel": zip_rel, "channel_mp3_rel": channel_mp3_rel}
+    return {
+        "generated": generated,
+        "zip_rel": zip_rel,
+        "channel_mp3_rel": channel_mp3_rel,
+        "primary_data_url": primary_data_url,
+        "primary_relpath": primary_relpath,
+    }
 
 @app.post("/api/step2/generate-tts")
 async def step2_generate_tts(request: Request):
@@ -676,6 +691,9 @@ async def step2_generate_tts(request: Request):
             "generated": res["generated"],
             "zip": res["zip_rel"],
             "channel_mp3": res["channel_mp3_rel"],
+            # simpan data_url cuma untuk kasus 1 mp3 (biar gak bengkak)
+            "primary_data_url": res["primary_data_url"],
+            "primary_relpath": res["primary_relpath"],
         },
     )
     return {
@@ -683,6 +701,8 @@ async def step2_generate_tts(request: Request):
         "generated": len(res["generated"]),
         "zip": bool(res["zip_rel"]),
         "channel_mp3": res["channel_mp3_rel"],
+        "primary_data_url": res["primary_data_url"],
+        "primary_relpath": res["primary_relpath"],
     }
 
 @app.get("/api/step2/audios")
@@ -694,7 +714,15 @@ async def step2_get_audios(request: Request):
         j = _read_json(wid, "generated_audio.json")
         return {"ok": True, **j}
     except Exception:
-        return {"ok": True, "generated": [], "zip": None, "channel_mp3": None, "selected_text_indexes": []}
+        return {
+            "ok": True,
+            "generated": [],
+            "zip": None,
+            "channel_mp3": None,
+            "selected_text_indexes": [],
+            "primary_data_url": None,
+            "primary_relpath": None,
+        }
 
 def _headers_list_to_dict(hlist):
     out = {}
@@ -876,9 +904,6 @@ async def step3_upload_extracted(
     _require_license(sess)
     wid = _ensure_workspace(sess)
 
-    def _load_json_upload(up: UploadFile, label: str):
-        raw = asyncio_run(up.read())  # kita buat helper kecil biar rapi
-
     import asyncio
 
     async def read_json_file(up: UploadFile, label: str):
@@ -899,7 +924,6 @@ async def step3_upload_extracted(
     if not isinstance(c, dict):
         raise HTTPException(status_code=400, detail="COOKIES_MUST_BE_OBJECT")
     if not isinstance(p, dict):
-        # submit_payload bisa saja object besar; kita paksa object supaya flow render aman
         raise HTTPException(status_code=400, detail="SUBMIT_PAYLOAD_MUST_BE_OBJECT")
 
     _write_json(wid, "headers.json", h)
@@ -1083,10 +1107,18 @@ def _run_render_flow(wid: str, mp3_relpath: str) -> dict:
     BUS.push(wid, f"Render selesai: animasi/{os.path.basename(out_file)}")
 
     mp4_rel = f"animasi/{os.path.basename(out_file)}"
+
     _write_text(
         wid,
         "animasi.txt",
         f"OUTPUT_MP4={mp4_rel}\nSOURCE_MP3={mp3_relpath}\nSIGNED_URL={signed_url}\n"
+    )
+
+    # simpan juga json kecil agar UI bisa ambil signed_url setelah reload
+    _write_json(
+        wid,
+        "render_last.json",
+        {"mp4_rel": mp4_rel, "signed_url": signed_url, "source_mp3": mp3_relpath, "ts": int(_now())}
     )
 
     return {"mp4_rel": mp4_rel, "signed_url": signed_url}
@@ -1104,7 +1136,7 @@ async def step4_render(request: Request):
 
     if missing:
         BUS.push(wid, f"HAR_NOT_READY missing={missing} files_now={_list_files(wid)}")
-        raise HTTPException(status_code=400, detail={"code":"HAR_NOT_READY", "missing": missing})
+        raise HTTPException(status_code=400, detail={"code": "HAR_NOT_READY", "missing": missing})
 
     body = await request.json()
     mp3_rel = (body.get("mp3_relpath") or "").strip()
@@ -1112,7 +1144,7 @@ async def step4_render(request: Request):
         raise HTTPException(status_code=400, detail="MP3_NOT_SELECTED")
 
     try:
-        res = _run_render_flow(wid, mp3_rel)  # <-- sekarang dict
+        res = _run_render_flow(wid, mp3_rel)
     except requests.HTTPError as e:
         BUS.push(wid, f"ERROR Adobe HTTP: {str(e)}")
         raise HTTPException(status_code=400, detail="ADOBE_HTTP_ERROR")
@@ -1121,6 +1153,17 @@ async def step4_render(request: Request):
         raise HTTPException(status_code=400, detail=str(e))
 
     return {"ok": True, "mp4": res["mp4_rel"], "signed_url": res["signed_url"]}
+
+@app.get("/api/step4/last")
+async def step4_last(request: Request):
+    sess = _get_session(request)
+    _require_license(sess)
+    wid = _ensure_workspace(sess)
+    try:
+        j = _read_json(wid, "render_last.json")
+        return {"ok": True, **j}
+    except Exception:
+        return {"ok": True, "mp4_rel": None, "signed_url": None, "source_mp3": None}
 
 @app.get("/api/artifacts")
 async def artifacts(request: Request):
@@ -1144,12 +1187,10 @@ def _safe_filename(name: str) -> str:
     name = (name or "").strip()
     if not name:
         return ""
-    # anti header injection + anti path traversal
     name = name.replace("\r", "").replace("\n", "")
     name = name.replace("\\", "_").replace("/", "_")
-    # rapihin karakter
     name = re.sub(r"[^A-Za-z0-9_\-\,\.\(\)\[\]\s]+", "_", name).strip()
-    return name[:120]  # batasi panjang
+    return name[:120]
 
 @app.get("/api/download")
 async def download(request: Request, path: str, name: str = ""):

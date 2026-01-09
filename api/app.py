@@ -266,7 +266,36 @@ def _safe_join(wid: str, relpath: str) -> str:
 
 @app.get("/", response_class=HTMLResponse)
 def home():
-    return (BASE_DIR / "public" / "index.html").read_text(encoding="utf-8")
+    try:
+        index_path = BASE_DIR / "public" / "index.html"
+        if index_path.exists():
+            return index_path.read_text(encoding="utf-8")
+        else:
+            # Fallback jika file tidak ada
+            return HTMLResponse(
+                content="""
+                <!DOCTYPE html>
+                <html>
+                <head><title>ShortStudio API</title></head>
+                <body>
+                    <h1>ShortStudio API</h1>
+                    <p>Server is running. Public files not found in deployment.</p>
+                    <p>API Endpoints:</p>
+                    <ul>
+                        <li>POST /api/auth/license</li>
+                        <li>POST /api/settings/api-keys</li>
+                        <li>GET /api/settings/status</li>
+                    </ul>
+                </body>
+                </html>
+                """,
+                status_code=200
+            )
+    except Exception as e:
+        return HTMLResponse(
+            content=f"<h1>ShortStudio API</h1><p>Error: {str(e)}</p>",
+            status_code=500
+        )
 
 @app.post("/api/auth/license")
 async def auth_license(request: Request):

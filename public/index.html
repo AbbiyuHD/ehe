@@ -86,6 +86,25 @@
       border-top: 1px solid rgba(38,49,88,.35);
     }
 
+    .filePick{
+      display:flex;
+      gap:10px;
+      align-items:center;
+    }
+    .filePick input[type="file"]{
+      display:none;
+    }
+    .fileName{
+      flex:1;
+      min-width: 0;
+      font-size:12px;
+      color: var(--muted);
+      font-family: var(--mono);
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+
     input:-webkit-autofill,
     input:-webkit-autofill:hover,
     input:-webkit-autofill:focus{
@@ -719,7 +738,7 @@ function renderSetup(){
     const dlChan = channelMp3 ? `<a class="link" href="${api("/download")}?path=${encodeURIComponent(channelMp3)}" target="_blank">Download sound_namachannel.mp3</a>` : "";
     body.innerHTML = `
       <div class="note">
-        Audio hasil TTS tersimpan di workspace. Pilih satu MP3 untuk step animasi.
+        Audio hasil generate tersimpan di workspace. Pilih satu MP3 untuk step animasi.
       </div>
       <div class="btnrow">
         <button class="btn" id="btnRefreshAud" type="button">Refresh</button>
@@ -743,40 +762,107 @@ function renderSetup(){
     const body = $("mainBody");
     body.innerHTML = `
       <div class="note">
-        Upload file <b>.har</b> (hasil rekaman network request POST /chx/submit).
-        Sistem akan extract: <span style="font-family:var(--mono)">headers.json, cookies.json, submit_payload.json, user_choices.json</span>
+        Upload file hasil extract (lebih cepat daripada .har).
+        Wajib: <b>headers.json</b>, <b>cookies.json</b>, <b>submit_payload.json</b>.
+        Opsional: <b>user_choices.json</b>.
       </div>
       <div class="sep"></div>
-      <div class="row">
-        <div class="field">
-          <label>Pilih file .har</label>
-          <input id="harFile" type="file" accept=".har,application/json"/>
-        </div>
-        <div class="field">
-          <div class="btnrow" style="margin-top:0">
-            <button class="btn primary" id="btnUploadHar" type="button">Upload & Extract</button>
-            <button class="btn" id="btnBackToSound" type="button">Kembali</button>
-          </div>
+
+      <div class="field">
+        <label>headers.json</label>
+        <div class="filePick">
+          <input id="hdrFile" type="file" accept=".json,application/json"/>
+          <button class="btn" id="btnPickHdr" type="button">Pilih File</button>
+          <div class="fileName" id="hdrName">Belum dipilih</div>
         </div>
       </div>
-      <div class="note" id="harMsg"></div>
+
+      <div class="field" style="margin-top:10px">
+        <label>cookies.json</label>
+        <div class="filePick">
+          <input id="ckFile" type="file" accept=".json,application/json"/>
+          <button class="btn" id="btnPickCk" type="button">Pilih File</button>
+          <div class="fileName" id="ckName">Belum dipilih</div>
+        </div>
+      </div>
+
+      <div class="field" style="margin-top:10px">
+        <label>submit_payload.json</label>
+        <div class="filePick">
+          <input id="plFile" type="file" accept=".json,application/json"/>
+          <button class="btn" id="btnPickPl" type="button">Pilih File</button>
+          <div class="fileName" id="plName">Belum dipilih</div>
+        </div>
+      </div>
+
+      <div class="field" style="margin-top:10px">
+        <label>user_choices.json <span style="color:#AAB6E6">(opsional)</span></label>
+        <div class="filePick">
+          <input id="ucFile" type="file" accept=".json,application/json"/>
+          <button class="btn" id="btnPickUc" type="button">Pilih File</button>
+          <div class="fileName" id="ucName">Belum dipilih</div>
+        </div>
+      </div>
+
+      <div class="sep"></div>
+
+      <div class="btnrow" style="margin-top:0">
+        <button class="btn primary" id="btnUploadJson" type="button">Upload & Save</button>
+        <button class="btn" id="btnBackToSound" type="button">Kembali</button>
+      </div>
+
+      <div class="note" id="harMsg" style="margin-top:10px"></div>
+
       <div class="btnrow">
         <button class="btn primary" id="btnToAnim" type="button" disabled>Lanjut Render Animasi</button>
       </div>
     `;
+
+    // helper untuk tombol pilih file biar rapi
+    function wirePick(btnId, inputId, nameId){
+      $(btnId).onclick = ()=> $(inputId).click();
+      $(inputId).onchange = ()=>{
+        const f = $(inputId).files?.[0];
+        $(nameId).textContent = f ? f.name : "Belum dipilih";
+      };
+    }
+    wirePick("btnPickHdr","hdrFile","hdrName");
+    wirePick("btnPickCk","ckFile","ckName");
+    wirePick("btnPickPl","plFile","plName");
+    wirePick("btnPickUc","ucFile","ucName");
+
     $("btnBackToSound").onclick = async ()=>{ setActiveStep(2); await fetchAudios(); renderStep(); };
-    $("btnUploadHar").onclick = async ()=>{
-      const f = $("harFile").files?.[0];
-      if(!f){ showToast("Pilih file .har dulu"); return; }
+
+    $("btnUploadJson").onclick = async ()=>{
+      const fHdr = $("hdrFile").files?.[0];
+      const fCk  = $("ckFile").files?.[0];
+      const fPl  = $("plFile").files?.[0];
+      const fUc  = $("ucFile").files?.[0];
+
+      if(!fHdr || !fCk || !fPl){
+        $("harMsg").innerHTML = `<span style="color:#FBBF24">⚠️ Wajib pilih headers.json, cookies.json, submit_payload.json</span>`;
+        return;
+      }
+
       const fd = new FormData();
-      fd.append("har", f);
-      const r = await fetch(api("/step3/upload-har"), {method:"POST", credentials:"include", body:fd});
+      fd.append("headers", fHdr);
+      fd.append("cookies", fCk);
+      fd.append("submit_payload", fPl);
+      if(fUc) fd.append("user_choices", fUc);
+
+      const r = await fetch(api("/step3/upload-extracted"), {
+        method:"POST", credentials:"include", body: fd
+      });
       const j = await r.json().catch(()=>({}));
-      if(!r.ok){ $("harMsg").textContent = j.detail || "Upload gagal"; return; }
-      $("harMsg").innerHTML = `<span style="color:#34D399">✅ HAR extracted sukses</span>`;
+      if(!r.ok){
+        $("harMsg").textContent = j.detail || "Upload gagal";
+        return;
+      }
+      $("harMsg").innerHTML = `<span style="color:#34D399">✅ Files saved sukses</span>`;
       $("btnToAnim").disabled = false;
-      showToast("HAR OK");
+      showToast("Step 3 OK");
     };
+
     $("btnToAnim").onclick = ()=>{ setActiveStep(4); renderStep(); };
   }
   async function fetchArtifacts(){
@@ -798,7 +884,7 @@ function renderSetup(){
       <div class="sep"></div>
       <div class="field">
         <label>MP3 yang akan dirender</label>
-        <input id="mp3Rel" value="${selectedMp3Rel || ""}" placeholder="tts_output/sound_001.mp3"/>
+        <input id="mp3Rel" value="${selectedMp3Rel || ""}" placeholder="sound/sound_001.mp3"/>
       </div>
       <div class="btnrow">
         <button class="btn" id="btnBackToHar" type="button">Kembali</button>

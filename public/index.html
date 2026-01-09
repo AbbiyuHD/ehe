@@ -23,7 +23,6 @@
       --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
       --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
     }
-
     *{box-sizing:border-box}
     html,body{height:100%}
 
@@ -35,7 +34,7 @@
         radial-gradient(1200px 600px at 20% -10%, rgba(124,92,255,.35), transparent 60%),
         radial-gradient(900px 600px at 90% 10%, rgba(0,212,255,.25), transparent 60%),
         linear-gradient(180deg, var(--bg0), var(--bg1));
-      overflow: hidden; /* body no scroll */
+      overflow: hidden;
     }
 
     input[type="number"]::-webkit-outer-spin-button,
@@ -48,7 +47,6 @@
       appearance: textfield;
     }
 
-    /* autofill */
     input:-webkit-autofill,
     input:-webkit-autofill:hover,
     input:-webkit-autofill:focus{
@@ -59,14 +57,13 @@
       caret-color: var(--text);
     }
 
-    /* ===== LAYOUT FULL HEIGHT ===== */
     .wrap{
       max-width:1180px;
       margin:0 auto;
       height: 100vh;
       display:flex;
       flex-direction:column;
-      padding: 28px 18px 18px; /* bawah jangan 60px */
+      padding: 28px 18px 18px;
     }
 
     .top{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;}
@@ -162,7 +159,6 @@
       box-shadow: 0 10px 30px rgba(124,92,255,.18);
     }
 
-    /* card kiri boleh scroll kalau konten panjang */
     .body{
       flex:1;
       min-height:0;
@@ -277,7 +273,6 @@
       white-space:nowrap;
     }
 
-    /* ===== TERMINAL (full height in card) ===== */
     .terminal{min-height:0;}
     .termhead{
       padding:16px;border-bottom:1px solid rgba(38,49,88,.65);
@@ -288,7 +283,6 @@
     .link{color:#EAF0FF;text-decoration:none;border-bottom:1px dashed rgba(170,182,230,.6);}
     .link:hover{border-bottom-color: rgba(0,212,255,.9)}
 
-    /* ===== TERMINAL BOX STATE ===== */
     .termbox{
       flex:1;
       min-height:0;
@@ -298,12 +292,10 @@
       color:#D9E3FF;
       overflow:auto;
 
-      /* horizontal scroll muncul (tidak wrap) */
       white-space: pre;
       overflow-wrap: normal;
       word-break: normal;
 
-      /* default: ikut background card */
       background: transparent;
 
       scrollbar-gutter: auto;
@@ -314,7 +306,6 @@
     }
     .termbox > div{ white-space: pre; }
 
-    /* saat ada log */
     .termbox.haslogs{
       background:
         radial-gradient(900px 350px at 10% 0%, rgba(124,92,255,.12), transparent 55%),
@@ -323,7 +314,6 @@
       scrollbar-color: rgba(124,92,255,.55) rgba(10,16,33,.35);
     }
 
-    /* Webkit scrollbar */
     .termbox::-webkit-scrollbar{ width:12px; height:12px; }
     .termbox.empty::-webkit-scrollbar-track{ background:transparent; border:0; }
     .termbox.empty::-webkit-scrollbar-thumb{ background:transparent; border:0; }
@@ -344,7 +334,6 @@
     }
     .termbox::-webkit-scrollbar-corner{ background: transparent; }
 
-    /* ===== TOAST & MODAL ===== */
     .toast{
       position:fixed;left:50%;bottom:18px;transform:translateX(-50%);
       background: rgba(15,23,48,.92);
@@ -501,8 +490,11 @@
   let es = null;
   let termLastIdx = 0;
 
+  // ====== NEW: cache anti-serverless ======
+  let mp3DataUrl = null;      // dari step2 (primary_data_url)
+  let mp4SignedUrl = null;    // dari step4 render (signed_url)
+
   async function resetWorkspaceHard(){
-    // reset di backend (hapus file2 workspace)
     try{
       const r = await fetch(api("/workspace/reset"), {
         method: "POST",
@@ -542,7 +534,6 @@
   }
 
   function resetClientState(){
-    // reset state UI supaya step1 kosong
     texts = [];
     channel = "";
     audios = [];
@@ -552,8 +543,10 @@
     selectedTextIdx = new Set();
     selectedMp3Rel = null;
 
-    // optional: reset terminal log (backend sudah ada endpoint)
-    // biar tampilannya fresh juga
+    // reset cache download
+    mp3DataUrl = null;
+    mp4SignedUrl = null;
+
     fetch(api("/events/clear"), { method:"POST", credentials:"include" }).catch(()=>{});
     termLastIdx = 0;
     startTerminal(true, true);
@@ -845,6 +838,10 @@
       });
       const j = await r.json().catch(()=>({}));
       if(!r.ok){ showToast(j.detail || "Gagal generate sound"); return; }
+
+      // NEW: simpan data_url (kalau 1 audio)
+      mp3DataUrl = j.primary_data_url || null;
+
       showToast("Generate selesai");
       setActiveStep(2);
       await fetchAudios();
@@ -858,6 +855,10 @@
     audios = j.generated || [];
     zipRel = j.zip || null;
     channelMp3 = j.channel_mp3 || null;
+
+    // NEW: ambil data_url dari backend (kalau ada)
+    mp3DataUrl = j.primary_data_url || mp3DataUrl || null;
+
     selectedMp3Rel = audios[0]?.relpath || channelMp3 || null;
   }
 
@@ -1014,7 +1015,8 @@
 
     $("btnToAnim").onclick = async ()=>{
       await fetchArtifacts();
-      await fetchAudios();   // biar selectedMp3Rel juga update
+      await fetchAudios();
+      await fetchLastRender(); // NEW: biar mp4SignedUrl kebaca jika ada
       setActiveStep(4);
       renderStep();
     };
@@ -1026,19 +1028,70 @@
     artifacts = j.files || [];
   }
 
+  // NEW: ambil signed_url terakhir dari backend (biar survive reload)
+  async function fetchLastRender(){
+    try{
+      const r = await fetch(api("/step4/last"), {credentials:"include"});
+      const j = await r.json().catch(()=>({}));
+      mp4SignedUrl = j.signed_url || mp4SignedUrl || null;
+    }catch(e){}
+  }
+
+  // helper download agar bisa pakai nama file custom
+  function triggerDownloadFromBlob(blob, filename){
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename || "download";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 60_000);
+  }
+
+  async function downloadUrlSmart(url, filename){
+    // coba fetch->blob untuk bisa rename; kalau CORS gagal fallback open tab
+    try{
+      const r = await fetch(url, { method:"GET" });
+      if(!r.ok) throw new Error("HTTP_"+r.status);
+      const blob = await r.blob();
+      triggerDownloadFromBlob(blob, filename);
+    }catch(e){
+      window.open(url, "_blank");
+    }
+  }
+
+  async function downloadDataUrlSmart(dataUrl, filename){
+    // data: bisa difetch jadi blob, lalu rename
+    try{
+      const r = await fetch(dataUrl);
+      const blob = await r.blob();
+      triggerDownloadFromBlob(blob, filename);
+    }catch(e){
+      // fallback: langsung buka dataUrl (biasanya tetap bisa)
+      const a = document.createElement("a");
+      a.href = dataUrl;
+      a.download = filename || "audio.mp3";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
+  }
+
   function renderStep4(){
     const body = $("mainBody");
 
-    // hitung readiness
     const textPath = "output_sound.txt";
-    const animPathTxt = "animasi.txt";
     const mp4Path = artifacts.find(x=>x.startsWith("animasi/") && x.endsWith(".mp4")) || null;
 
     const textReady = artifacts.includes(textPath);
-    const soundReady = !!selectedMp3Rel && artifacts.includes(selectedMp3Rel);
-    const mp4Ready = !!mp4Path && artifacts.includes(mp4Path);
 
-    // nama file: NAMACHANNEL_JAM,TANGGAL.ext
+    // sound siap kalau ada mp3DataUrl (anti serverless) ATAU file workspace ada
+    const soundReady = !!mp3DataUrl || (!!selectedMp3Rel && artifacts.includes(selectedMp3Rel));
+
+    // mp4 siap kalau ada signed_url ATAU file workspace ada
+    const mp4Ready = !!mp4SignedUrl || (!!mp4Path && artifacts.includes(mp4Path));
+
     const st = stampNow();
     const prefix = `${safeChannelName(channel)}_${st.time},${st.date}`;
 
@@ -1088,29 +1141,38 @@
         </button>
       </div>
 
-      <div class="note" style="margin-top:8px">
-      </div>
+      <div class="note" style="margin-top:8px"></div>
     `;
 
     $("btnBackToHar").onclick = ()=>{ setActiveStep(3); renderStep(); };
 
-    // download handlers
     $("btnDlText").onclick = ()=>{
       if(!textReady) return;
       window.open(dlUrl(textPath, textName), "_blank");
     };
 
-    $("btnDlSound").onclick = ()=>{
+    $("btnDlSound").onclick = async ()=>{
       if(!soundReady) return;
+      // prefer data_url (anti serverless)
+      if(mp3DataUrl){
+        await downloadDataUrlSmart(mp3DataUrl, soundName);
+        return;
+      }
+      // fallback: file workspace
       window.open(dlUrl(selectedMp3Rel, soundName), "_blank");
     };
 
-    $("btnDlMp4").onclick = ()=>{
+    $("btnDlMp4").onclick = async ()=>{
       if(!mp4Ready) return;
+      // prefer signed_url (anti serverless)
+      if(mp4SignedUrl){
+        await downloadUrlSmart(mp4SignedUrl, mp4Name);
+        return;
+      }
+      // fallback: file workspace
       window.open(dlUrl(mp4Path, mp4Name), "_blank");
     };
 
-    // Generate Lagi (hard reset)
     $("btnGenerateAgain").onclick = async ()=>{
       const btn = $("btnGenerateAgain");
       btn.disabled = true;
@@ -1129,7 +1191,6 @@
       btn.textContent = old;
     };
 
-    // Render
     $("btnRender").onclick = async ()=>{
       const mp3_relpath = $("mp3Rel").value.trim();
       if(!mp3_relpath){ showToast("mp3_relpath kosong"); return; }
@@ -1142,8 +1203,12 @@
       const j = await r.json().catch(()=>({}));
       if(!r.ok){ showToast(j.detail || "Render gagal"); return; }
 
+      // NEW: simpan signed_url
+      mp4SignedUrl = j.signed_url || null;
+
       showToast("Render selesai");
-      await fetchArtifacts();   // penting biar status READY muncul
+      await fetchArtifacts();
+      await fetchLastRender();
       renderStep4();
     };
   }
@@ -1175,6 +1240,7 @@
     await fetchTexts();
     await fetchAudios();
     await fetchArtifacts();
+    await fetchLastRender(); // NEW
     renderStep();
   })();
 </script>

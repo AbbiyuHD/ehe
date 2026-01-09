@@ -190,6 +190,30 @@
       transform: translateY(-1px);
     }
 
+    .tag{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      margin-left:8px;
+      padding:2px 8px;
+      border-radius:999px;
+      font-size:11px;
+      border:1px solid rgba(38,49,88,.75);
+      color: var(--muted);
+      background: rgba(10,16,33,.45);
+    }
+    .tag.ok{
+      color:#EFFFF6;
+      border-color: rgba(52,211,153,.55);
+      background: rgba(52,211,153,.14);
+    }
+    .tag.no{
+      color:#FFF7E6;
+      border-color: rgba(251,191,36,.55);
+      background: rgba(251,191,36,.14);
+    }
+    .btn:disabled{opacity:.55;cursor:not-allowed;transform:none}
+
     .inpline{position:relative;display:flex;gap:10px;align-items:center}
     .inpline input{width:100%}
     .iconToggle{
@@ -496,6 +520,25 @@
       showToast("Reset error (cek backend)");
       return false;
     }
+  }
+
+  function safeChannelName(s){
+    s = (s || "CHANNEL").trim();
+    return s.replace(/[^A-Za-z0-9_\-]+/g, "_").replace(/^_+|_+$/g,"").slice(0,40) || "CHANNEL";
+  }
+  function stampNow(){
+    const d = new Date();
+    const pad = (n)=> String(n).padStart(2,"0");
+    const HH = pad(d.getHours());
+    const MM = pad(d.getMinutes());
+    const SS = pad(d.getSeconds());
+    const YYYY = d.getFullYear();
+    const MMm = pad(d.getMonth()+1);
+    const DD = pad(d.getDate());
+    return { time: `${HH}${MM}${SS}`, date: `${YYYY}${MMm}${DD}` };
+  }
+  function dlUrl(path, filename){
+    return `${api("/download")}?path=${encodeURIComponent(path)}&name=${encodeURIComponent(filename)}`;
   }
 
   function resetClientState(){
@@ -969,7 +1012,12 @@
       showToast("Step 3 OK");
     };
 
-    $("btnToAnim").onclick = ()=>{ setActiveStep(4); renderStep(); };
+    $("btnToAnim").onclick = async ()=>{
+      await fetchArtifacts();
+      await fetchAudios();   // biar selectedMp3Rel juga update
+      setActiveStep(4);
+      renderStep();
+    };
   }
 
   async function fetchArtifacts(){
@@ -980,13 +1028,27 @@
 
   function renderStep4(){
     const body = $("mainBody");
-    const dl = (path, label) =>
-      `<a class="link" href="${api("/download")}?path=${encodeURIComponent(path)}" target="_blank">${label}</a>`;
 
-    const outSound = artifacts.includes("output_sound.txt") ? dl("output_sound.txt","Download output_sound.txt") : "";
-    const animTxt  = artifacts.includes("animasi.txt") ? dl("animasi.txt","Download animasi.txt") : "";
-    const mp4      = artifacts.find(x=>x.startsWith("animasi/") && x.endsWith(".mp4"));
-    const mp4Link  = mp4 ? dl(mp4, `Download ${mp4}`) : "";
+    // hitung readiness
+    const textPath = "output_sound.txt";
+    const animPathTxt = "animasi.txt";
+    const mp4Path = artifacts.find(x=>x.startsWith("animasi/") && x.endsWith(".mp4")) || null;
+
+    const textReady = artifacts.includes(textPath);
+    const soundReady = !!selectedMp3Rel && artifacts.includes(selectedMp3Rel);
+    const mp4Ready = !!mp4Path && artifacts.includes(mp4Path);
+
+    // nama file: NAMACHANNEL_JAM,TANGGAL.ext
+    const st = stampNow();
+    const prefix = `${safeChannelName(channel)}_${st.time},${st.date}`;
+
+    const textName = `${prefix}.txt`;
+    const soundName = `${prefix}.mp3`;
+    const mp4Name   = `${prefix}.mp4`;
+
+    const tag = (ok)=> ok
+      ? `<span class="tag ok">READY</span>`
+      : `<span class="tag no">BELUM</span>`;
 
     body.innerHTML = `
       <div class="note">
@@ -1002,16 +1064,28 @@
       <div class="btnrow">
         <button class="btn" id="btnBackToHar" type="button">Kembali</button>
         <button class="btn primary" id="btnRender" type="button">Render Animasi</button>
-
-        <!-- GANTI INI: Refresh Artifacts -> Generate Lagi -->
         <button class="btn" id="btnGenerateAgain" type="button">Generate Lagi</button>
       </div>
 
       <div class="sep"></div>
 
-      <div class="note" id="artLinks">
-        ${outSound}${outSound && animTxt ? " • " : ""}${animTxt}
-        ${(outSound || animTxt) && mp4Link ? " • " : ""}${mp4Link}
+      <div class="note" style="margin-top:0">
+        Download hasil (nama file otomatis): <b>${prefix}</b>.<br/>
+        Text: ${tag(textReady)} • Sound: ${tag(soundReady)} • Animasi: ${tag(mp4Ready)}
+      </div>
+
+      <div class="btnrow">
+        <button class="btn" id="btnDlText" type="button" ${textReady ? "" : "disabled"}>
+          Download Text ${tag(textReady)}
+        </button>
+
+        <button class="btn" id="btnDlSound" type="button" ${soundReady ? "" : "disabled"}>
+          Download Sound ${tag(soundReady)}
+        </button>
+
+        <button class="btn" id="btnDlMp4" type="button" ${mp4Ready ? "" : "disabled"}>
+          Download Animasi ${tag(mp4Ready)}
+        </button>
       </div>
 
       <div class="note" style="margin-top:8px">
@@ -1021,18 +1095,34 @@
 
     $("btnBackToHar").onclick = ()=>{ setActiveStep(3); renderStep(); };
 
-    // tombol baru: Generate Lagi (hard reset)
+    // download handlers
+    $("btnDlText").onclick = ()=>{
+      if(!textReady) return;
+      window.open(dlUrl(textPath, textName), "_blank");
+    };
+
+    $("btnDlSound").onclick = ()=>{
+      if(!soundReady) return;
+      window.open(dlUrl(selectedMp3Rel, soundName), "_blank");
+    };
+
+    $("btnDlMp4").onclick = ()=>{
+      if(!mp4Ready) return;
+      window.open(dlUrl(mp4Path, mp4Name), "_blank");
+    };
+
+    // Generate Lagi (hard reset)
     $("btnGenerateAgain").onclick = async ()=>{
       const btn = $("btnGenerateAgain");
       btn.disabled = true;
       const old = btn.textContent;
       btn.textContent = "Resetting...";
 
-      const ok = await resetWorkspaceHard(); // backend reset
+      const ok = await resetWorkspaceHard();
       if(ok){
-        resetClientState();                  // UI reset
-        setActiveStep(1);                    // balik ke Step Text
-        renderStep();                        // tampilin Step1 kosong
+        resetClientState();
+        setActiveStep(1);
+        renderStep();
         showToast("Siap generate dari awal");
       }
 
@@ -1040,7 +1130,7 @@
       btn.textContent = old;
     };
 
-    // render button tetap sama
+    // Render
     $("btnRender").onclick = async ()=>{
       const mp3_relpath = $("mp3Rel").value.trim();
       if(!mp3_relpath){ showToast("mp3_relpath kosong"); return; }
@@ -1054,7 +1144,7 @@
       if(!r.ok){ showToast(j.detail || "Render gagal"); return; }
 
       showToast("Render selesai");
-      await fetchArtifacts();
+      await fetchArtifacts();   // penting biar status READY muncul
       renderStep4();
     };
   }

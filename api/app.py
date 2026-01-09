@@ -201,6 +201,40 @@ def _list_files(wid: str) -> List[str]:
             out.append(rel)
     return sorted(out)
 
+def _reset_workspace(wid: str) -> None:
+    d = _ws_dir(wid)
+    if not os.path.isdir(d):
+        os.makedirs(d, exist_ok=True)
+
+    # hapus semua kecuali meta.json (biar workspace_id tetap sama)
+    keep = {"meta.json"}
+    for root, dirs, files in os.walk(d):
+        # hapus file
+        for fn in files:
+            rel = os.path.relpath(os.path.join(root, fn), d).replace("\\", "/")
+            if rel in keep:
+                continue
+            try:
+                os.remove(os.path.join(root, fn))
+            except Exception:
+                pass
+
+        # hapus folder tertentu yang pasti aman dibuang
+        # (sound/, animasi/ dll) — lakukan dari dalam ke luar
+    for sub in ["sound", "animasi"]:
+        shutil.rmtree(os.path.join(d, sub), ignore_errors=True)
+
+    # bersihin meta channel_name
+    try:
+        meta = _load_meta(wid)
+        meta.channel_name = None
+        _save_meta(meta)
+    except Exception:
+        pass
+
+    # bersihin terminal log juga biar fresh
+    BUS.clear(wid)
+
 def _cleanup_expired_workspaces():
     ttl = WORKSPACE_TTL_HOURS * 3600
     now = _now()
@@ -996,7 +1030,7 @@ def _download_signed(url: str, out_path: str) -> None:
                 if chunk:
                     f.write(chunk)
 
-def _run_render_flow(wid: str, mp3_relpath: str) -> str:
+def _run_render_flow(wid: str, mp3_relpath: str) -> dict:
     headers = _read_json(wid, "headers.json")
     cookies = _read_json(wid, "cookies.json")
     submit_payload = _read_json(wid, "submit_payload.json")
@@ -1038,18 +1072,24 @@ def _run_render_flow(wid: str, mp3_relpath: str) -> str:
     job_id, job_json = _adobe_submit_job(sess, wid, payload, uc)
     polling_url = _adobe_polling_url(job_id, job_json)
 
-    out_url = _adobe_poll_until_success(sess, wid, polling_url, max_minutes=30)
+    signed_url = _adobe_poll_until_success(sess, wid, polling_url, max_minutes=30)
 
     out_dir = os.path.join(_ws_dir(wid), "animasi")
     os.makedirs(out_dir, exist_ok=True)
 
     out_file = os.path.join(out_dir, f"{base_name}.mp4")
     BUS.push(wid, "Download MP4 dari signed URL...")
-    _download_signed(out_url, out_file)
+    _download_signed(signed_url, out_file)
     BUS.push(wid, f"Render selesai: animasi/{os.path.basename(out_file)}")
 
-    _write_text(wid, "animasi.txt", f"OUTPUT_MP4=animasi/{os.path.basename(out_file)}\nSOURCE_MP3={mp3_relpath}\n")
-    return f"animasi/{os.path.basename(out_file)}"
+    mp4_rel = f"animasi/{os.path.basename(out_file)}"
+    _write_text(
+        wid,
+        "animasi.txt",
+        f"OUTPUT_MP4={mp4_rel}\nSOURCE_MP3={mp3_relpath}\nSIGNED_URL={signed_url}\n"
+    )
+
+    return {"mp4_rel": mp4_rel, "signed_url": signed_url}
 
 @app.post("/api/step4/render")
 async def step4_render(request: Request):
@@ -1072,7 +1112,7 @@ async def step4_render(request: Request):
         raise HTTPException(status_code=400, detail="MP3_NOT_SELECTED")
 
     try:
-        mp4_rel = _run_render_flow(wid, mp3_rel)
+        res = _run_render_flow(wid, mp3_rel)  # <-- sekarang dict
     except requests.HTTPError as e:
         BUS.push(wid, f"ERROR Adobe HTTP: {str(e)}")
         raise HTTPException(status_code=400, detail="ADOBE_HTTP_ERROR")
@@ -1080,8 +1120,7 @@ async def step4_render(request: Request):
         BUS.push(wid, f"ERROR: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
 
-    return {"ok": True, "mp4": mp4_rel}
-
+    return {"ok": True, "mp4": res["mp4_rel"], "signed_url": res["signed_url"]}
 
 @app.get("/api/artifacts")
 async def artifacts(request: Request):
@@ -1089,6 +1128,17 @@ async def artifacts(request: Request):
     _require_license(sess)
     wid = _ensure_workspace(sess)
     return {"ok": True, "workspace_id": wid, "files": _list_files(wid)}
+
+@app.post("/api/workspace/reset")
+async def workspace_reset(request: Request):
+    sess = _get_session(request)
+    _require_license(sess)
+    wid = _ensure_workspace(sess)
+
+    BUS.push(wid, "Reset workspace diminta (Generate Lagi).")
+    _reset_workspace(wid)
+    BUS.push(wid, "Workspace direset: kembali fresh seperti baru login.")
+    return {"ok": True, "workspace_id": wid}
 
 @app.get("/api/download")
 async def download(request: Request, path: str):

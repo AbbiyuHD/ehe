@@ -528,7 +528,7 @@ def _eleven_stream_tts(api_key: str, text: str):
     return r
 
 def _tts_generate(wid: str, eleven_key: str, texts: List[str], selected_indexes: List[int]) -> dict:
-    tts_dir = os.path.join(_ws_dir(wid), "tts_output")
+    tts_dir = os.path.join(_ws_dir(wid), "sound")
     os.makedirs(tts_dir, exist_ok=True)
 
     meta = _load_meta(wid)
@@ -556,8 +556,8 @@ def _tts_generate(wid: str, eleven_key: str, texts: List[str], selected_indexes:
                 if chunk:
                     f.write(chunk)
 
-        BUS.push(wid, f"TTS saved: {fn}")
-        generated.append({"index": idx, "filename": fn, "relpath": f"tts_output/{fn}"})
+        BUS.push(wid, f"Sound saved: {fn}")
+        generated.append({"index": idx, "filename": fn, "relpath": f"sound/{fn}"})
 
     channel_mp3_rel = None
     if len(generated) == 1:
@@ -565,7 +565,7 @@ def _tts_generate(wid: str, eleven_key: str, texts: List[str], selected_indexes:
         dst_name = f"sound_{safe_channel}.mp3"
         dst = os.path.join(tts_dir, dst_name)
         shutil.copyfile(src, dst)
-        channel_mp3_rel = f"tts_output/{dst_name}"
+        channel_mp3_rel = f"sound/{dst_name}"
         BUS.push(wid, f"Also saved: {dst_name} (channel-named)")
 
     zip_rel = None
@@ -575,7 +575,7 @@ def _tts_generate(wid: str, eleven_key: str, texts: List[str], selected_indexes:
         with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as z:
             for g in generated:
                 z.write(os.path.join(_ws_dir(wid), g["relpath"]), arcname=g["filename"])
-        zip_rel = f"tts_output/{zip_name}"
+        zip_rel = f"sound/{zip_name}"
         BUS.push(wid, f"ZIP dibuat: {zip_name}")
 
     return {"generated": generated, "zip_rel": zip_rel, "channel_mp3_rel": channel_mp3_rel}

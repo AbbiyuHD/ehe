@@ -706,7 +706,7 @@ function renderSetup(){
       });
       const j = await r.json().catch(()=>({}));
       if(!r.ok){ showToast(j.detail || "Gagal generate sound"); return; }
-      showToast("TTS selesai");
+      showToast("Generate selesai");
       setActiveStep(2);
       await fetchAudios();
       renderStep();

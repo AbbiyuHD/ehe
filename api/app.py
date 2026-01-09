@@ -375,7 +375,6 @@ async def events_clear(request: Request):
     _require_license(sess)
     wid = _ensure_workspace(sess)
     BUS.clear(wid)
-    BUS.push(wid, "Terminal dibersihkan.")
     return {"ok": True}
 
 def _load_sound_reference(wid: str) -> List[str]:

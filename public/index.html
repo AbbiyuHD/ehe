@@ -571,11 +571,11 @@
       $(id).classList.toggle("active", i===n);
     });
     const titles = [
-      "Step 0 • License & Keys",
-      "Step 1 • Generate Text (Gemini)",
-      "Step 2 • Generate Sound (ElevenLabs)",
-      "Step 3 • Upload JSON",
-      "Step 4 • Render Animasi (Adobe)"
+      "License & Keys",
+      "Generate Text (Gemini)",
+      "Generate Sound (ElevenLabs)",
+      "Upload JSON",
+      "Render Animasi (Adobe)"
     ];
     $("stepTitle").textContent = titles[n] || "ShortStudio";
   }
@@ -891,7 +891,7 @@
       <div class="sep"></div>
       <div class="note">${dlZip} ${dlZip && dlChan ? " • " : ""} ${dlChan}</div>
       <div class="list" id="audioList">
-        ${audios.length ? audioItems : `<div class="note">Belum ada audio. Generate dulu dari Step 1.</div>`}
+        ${audios.length ? audioItems : `<div class="note">Belum ada audio. Generate dulu.</div>`}
       </div>
     `;
 
@@ -1009,7 +1009,7 @@
       }
       $("harMsg").innerHTML = `<span style="color:#34D399">✅ Files saved sukses</span>`;
       $("btnToAnim").disabled = false;
-      showToast("Step 3 OK");
+      showToast("OK");
     };
 
     $("btnToAnim").onclick = async ()=>{
@@ -1052,7 +1052,7 @@
 
     body.innerHTML = `
       <div class="note">
-        Pilih MP3 untuk render animasi (Adobe). MP3 yang dipakai berasal dari Step 2.
+        Pilih MP3 untuk render animasi (Adobe).
       </div>
       <div class="sep"></div>
 
@@ -1070,8 +1070,8 @@
       <div class="sep"></div>
 
       <div class="note" style="margin-top:0">
-        Download hasil (nama file otomatis): <b>${prefix}</b>.<br/>
-        Text: ${tag(textReady)} • Sound: ${tag(soundReady)} • Animasi: ${tag(mp4Ready)}
+        Download hasil: <b>${prefix}</b>.<br/>
+        Text ${tag(textReady)} | Sound ${tag(soundReady)} | Animasi ${tag(mp4Ready)}
       </div>
 
       <div class="btnrow">
@@ -1089,7 +1089,6 @@
       </div>
 
       <div class="note" style="margin-top:8px">
-        Catatan: jika Step 2 hanya pilih 1 teks, kamu juga dapat <b>sound_namachannel.mp3</b> di Step 2.
       </div>
     `;
 

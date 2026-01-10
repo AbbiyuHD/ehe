@@ -228,12 +228,17 @@ def _list_files(wid: str) -> List[str]:
             out.append(rel)
     return sorted(out)
 
-def _reset_workspace(wid: str) -> None:
+HAR_KEEP_FILES = {"headers.json", "cookies.json", "submit_payload.json", "user_choices.json"}
+
+def _reset_workspace(wid: str, keep_har: bool = True) -> None:
     d = _ws_dir(wid)
     if not os.path.isdir(d):
         os.makedirs(d, exist_ok=True)
 
     keep = {"meta.json"}
+    if keep_har:
+        keep |= HAR_KEEP_FILES
+
     for root, _, files in os.walk(d):
         for fn in files:
             rel = os.path.relpath(os.path.join(root, fn), d).replace("\\", "/")
@@ -244,9 +249,11 @@ def _reset_workspace(wid: str) -> None:
             except Exception:
                 pass
 
+    # hapus folder output yang bikin user harus ulang animasi
     for sub in ["sound", "animasi"]:
         shutil.rmtree(os.path.join(d, sub), ignore_errors=True)
 
+    # reset meta channel
     try:
         meta = _load_meta(wid)
         meta.channel_name = None
@@ -1202,15 +1209,17 @@ async def artifacts(request: Request):
     return {"ok": True, "workspace_id": wid, "files": _list_files(wid)}
 
 @app.post("/api/workspace/reset")
-async def workspace_reset(request: Request):
+async def workspace_reset(request: Request, keep_har: int = 1):
     sess = _get_session(request)
     _require_license(sess)
     wid = _ensure_workspace(sess)
 
-    BUS.push(wid, "Reset workspace diminta (Generate Lagi).")
-    _reset_workspace(wid)
-    BUS.push(wid, "Workspace direset: kembali fresh seperti baru login.")
-    return {"ok": True, "workspace_id": wid}
+    keep = bool(int(keep_har))
+
+    BUS.push(wid, f"Reset workspace diminta (Generate Lagi). keep_har={keep}")
+    _reset_workspace(wid, keep_har=keep)
+    BUS.push(wid, "Workspace direset (fresh).")
+    return {"ok": True, "workspace_id": wid, "keep_har": keep}
 
 def _safe_filename(name: str) -> str:
     name = (name or "").strip()

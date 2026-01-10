@@ -812,10 +812,10 @@
     body.innerHTML = `
       <div class="field">
         <label>Nama Channel</label>
-        <input id="channelName" placeholder="Contoh: BANG JAY" value="${channel || ""}" style="max-width: 400px"/>
-      </div>
-      <div class="btnrow" style="margin-top: 10px">
-        <button class="btn primary" id="btnGenText" type="button">Generate Text</button>
+        <div class="inpline">
+          <input id="channelName" placeholder="Contoh: BANG JAY" value="${channel || ""}" style="max-width: 400px; flex: 0 1 400px"/>
+          <button class="btn primary" id="btnGenText" type="button" style="flex: 0 0 auto">Generate Text</button>
+        </div>
       </div>
 
       <div class="sep"></div>

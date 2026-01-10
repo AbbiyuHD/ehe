@@ -496,7 +496,7 @@
 
   async function resetWorkspaceHard(){
     try{
-      const r = await fetch(api("/workspace/reset"), {
+      const r = await fetch(api("/workspace/reset?keep_har=1"), {
         method: "POST",
         credentials: "include"
       });
@@ -879,6 +879,8 @@
 
     const dlZip = zipRel ? `<a class="link" href="${api("/download")}?path=${encodeURIComponent(zipRel)}" target="_blank">Download ZIP (${zipRel})</a>` : "";
     const dlChan = channelMp3 ? `<a class="link" href="${api("/download")}?path=${encodeURIComponent(channelMp3)}" target="_blank">Download sound_namachannel.mp3</a>` : "";
+    const harReady = ["headers.json","cookies.json","submit_payload.json"].every(f => artifacts.includes(f));
+    const nextLabel = harReady ? "Lanjut Render Animasi" : "Lanjut Upload JSON";
 
     body.innerHTML = `
       <div class="note">
@@ -887,7 +889,7 @@
       <div class="btnrow">
         <button class="btn" id="btnRefreshAud" type="button">Refresh</button>
         <button class="btn" id="btnBackToText" type="button">Kembali</button>
-        <button class="btn primary" id="btnToJSON" type="button" ${audios.length? "" : "disabled"}>Lanjut Upload JSON</button>
+        <button class="btn primary" id="btnToJSON" type="button" ${audios.length? "" : "disabled"}>${nextLabel}</button>
       </div>
       <div class="sep"></div>
       <div class="note">${dlZip || ""}</div>
@@ -903,8 +905,16 @@
       r.onchange = (e)=>{ selectedMp3Rel = e.target.getAttribute("data-rel"); };
     });
 
-    $("btnToJSON").onclick = ()=>{
-      setActiveStep(3);
+    $("btnToJSON").onclick = async ()=>{
+      // pastikan artifacts up to date (optional tapi enak)
+      await fetchArtifacts();
+
+      const harReadyNow = ["headers.json","cookies.json","submit_payload.json"].every(f => artifacts.includes(f));
+      if(harReadyNow){
+        setActiveStep(4);
+      } else {
+        setActiveStep(3);
+      }
       renderStep();
     };
   }
@@ -1200,9 +1210,10 @@
       const ok = await resetWorkspaceHard();
       if(ok){
         resetClientState();
+        await fetchArtifacts(); // penting: biar HAR yang di-keep tetap kebaca di UI
         setActiveStep(1);
         renderStep();
-        showToast("Siap generate dari awal");
+        showToast("Siap generate dari awal (HAR tetap tersimpan)");
       }
 
       btn.disabled = false;

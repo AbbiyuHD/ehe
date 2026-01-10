@@ -16,6 +16,8 @@ from collections import defaultdict, deque
 from urllib.parse import urlparse
 from pathlib import Path
 from itsdangerous import URLSafeSerializer, BadSignature
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import requests
 from fastapi import FastAPI, UploadFile, File, HTTPException, Request
@@ -93,6 +95,12 @@ class LogBus:
         self._queues[wid].clear()
 
 BUS = LogBus()
+
+def _slug_channel(name: str) -> str:
+    s = (name or "channel").strip().lower()
+    s = re.sub(r"[^a-z0-9_\-]+", "_", s)
+    s = re.sub(r"_+", "_", s).strip("_")
+    return (s[:40] or "channel")
 
 def _now() -> float:
     return time.time()
@@ -1104,7 +1112,19 @@ def _run_render_flow(wid: str, mp3_relpath: str) -> dict:
         raise RuntimeError("MP3 tidak ditemukan di workspace.")
 
     mp3_filename = os.path.basename(mp3_abs)
-    base_name = mp3_filename.rsplit(".", 1)[0]
+    try:
+        meta = _load_meta(wid)
+        ch = meta.channel_name or ""
+    except Exception:
+        ch = ""
+
+    slug = _slug_channel(ch)  # jadi huruf kecil
+    rand4 = random.randint(1000, 9999)
+
+    # tanggal ddmmyyyy (pakai Asia/Jakarta biar sesuai kamu)
+    date_ddmmyyyy = datetime.now(ZoneInfo("Asia/Jakarta")).strftime("%d%m%Y")
+
+    base_name = f"{slug}_{rand4}_{date_ddmmyyyy}"
 
     sess = _build_adobe_session(headers, cookies)
 

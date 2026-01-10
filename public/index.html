@@ -846,6 +846,7 @@
         `;
         list.appendChild(el);
       });
+
       list.querySelectorAll("input[type=checkbox]").forEach(cb=>{
         cb.onchange = (e)=>{
           const i = parseInt(e.target.getAttribute("data-i"),10);
@@ -853,6 +854,7 @@
           $("btnToTTS").disabled = selectedTextIdx.size===0;
         };
       });
+
       $("btnToTTS").disabled = selectedTextIdx.size===0;
     }
 
@@ -860,7 +862,7 @@
 
     $("btnGenText").onclick = async ()=>{
       const channel_name = $("channelName").value.trim();
-      const count = 1; // FIX: selalu 1 (hapus UI count)
+      const count = 1; // FIX: selalu 1
       if(!channel_name){ showToast("Isi nama channel"); return; }
 
       const r = await fetch(api("/step1/generate-text"), {
@@ -888,71 +890,6 @@
       const j = await r.json().catch(()=>({}));
       if(!r.ok){ showToast(j.detail || "Gagal generate sound"); return; }
 
-      mp3DataUrl = j.primary_data_url || null;
-
-      showToast("Generate selesai");
-      setActiveStep(2);
-      await fetchAudios();
-      renderStep();
-    };
-  }
-
-    function drawTexts(){
-      list.innerHTML = "";
-      if(!texts.length){
-        list.innerHTML = `<div class="note">Belum ada teks. Generate dulu.</div>`;
-        return;
-      }
-      texts.forEach((t, i)=>{
-        const checked = selectedTextIdx.has(i) ? "checked" : "";
-        const el = document.createElement("div");
-        el.className = "item";
-        el.innerHTML = `
-          <input type="checkbox" data-i="${i}" ${checked}/>
-          <div class="txt"><b>[${String(i+1).padStart(2,"0")}]</b> ${t}</div>
-        `;
-        list.appendChild(el);
-      });
-      list.querySelectorAll("input[type=checkbox]").forEach(cb=>{
-        cb.onchange = (e)=>{
-          const i = parseInt(e.target.getAttribute("data-i"),10);
-          if(e.target.checked) selectedTextIdx.add(i); else selectedTextIdx.delete(i);
-          $("btnToTTS").disabled = selectedTextIdx.size===0;
-        };
-      });
-      $("btnToTTS").disabled = selectedTextIdx.size===0;
-    }
-
-    drawTexts();
-
-    $("btnGenText").onclick = async ()=>{
-      const channel_name = $("channelName").value.trim();
-      const count = parseInt($("count").value || "0", 10);
-      if(!channel_name || !count){ showToast("Isi channel & count"); return; }
-      const r = await fetch(api("/step1/generate-text"), {
-        method:"POST", credentials:"include",
-        headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({channel_name, count})
-      });
-      const j = await r.json().catch(()=>({}));
-      if(!r.ok){ showToast(j.detail || "Gagal generate text"); return; }
-      showToast("Text generated");
-      selectedTextIdx = new Set();
-      await fetchTexts();
-      renderStep1();
-    };
-
-    $("btnToTTS").onclick = async ()=>{
-      const indexes = Array.from(selectedTextIdx.values()).sort((a,b)=>a-b);
-      const r = await fetch(api("/step2/generate-tts"), {
-        method:"POST", credentials:"include",
-        headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({indexes})
-      });
-      const j = await r.json().catch(()=>({}));
-      if(!r.ok){ showToast(j.detail || "Gagal generate sound"); return; }
-
-      // NEW: simpan data_url (kalau 1 audio)
       mp3DataUrl = j.primary_data_url || null;
 
       showToast("Generate selesai");

@@ -518,6 +518,18 @@
     s = (s || "CHANNEL").trim();
     return s.replace(/[^A-Za-z0-9_\-]+/g, "_").replace(/^_+|_+$/g,"").slice(0,40) || "CHANNEL";
   }
+  function safeChannelSlugLower(s){
+    s = (s || "channel").trim().toLowerCase();
+    return s.replace(/[^a-z0-9_\-]+/g, "_").replace(/^_+|_+$/g,"").slice(0,40) || "channel";
+  }
+  function dateDDMMYYYY(){
+    const d = new Date();
+    const pad = (n)=> String(n).padStart(2,"0");
+    return `${pad(d.getDate())}${pad(d.getMonth()+1)}${d.getFullYear()}`;
+  }
+  function rand4(){
+    return String(Math.floor(1000 + Math.random()*9000));
+  }
   function stampNow(){
     const d = new Date();
     const pad = (n)=> String(n).padStart(2,"0");
@@ -1103,7 +1115,7 @@
     const mp4Ready = !!mp4SignedUrl || (!!mp4Path && artifacts.includes(mp4Path));
 
     const st = stampNow();
-    const prefix = `${safeChannelName(channel)}_${st.time},${st.date}`;
+    const prefix = `${safeChannelSlugLower(channel)}_${rand4()}_${dateDDMMYYYY()}`;
 
     const textName = `${prefix}.txt`;
     const soundName = `${prefix}.mp3`;
